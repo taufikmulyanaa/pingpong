@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏓 PWA Asset Generator - Tournament Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: {
+                            DEFAULT: '#3B82F6',
+                            50: '#EBF4FF',
+                            100: '#DBEAFE',
+                            500: '#3B82F6',
+                            600: '#2563EB',
+                            700: '#1D4ED8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        
+        .generated-icon {
+            transition: all 0.3s ease;
+        }
+        
+        .generated-icon:hover {
+            transform: scale(1.05);
+        }
+        
+        .download-progress {
+            transition: width 0.3s ease;
+        }
+        
+        @keyframes ping-pong {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(5deg); }
+        }
+        
+        .ping-pong-animation {
+            animation: ping-pong 2s infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans antialiased">
+    <div class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-primary-600 text-white">
+            <div class="max-w-6xl mx-auto px-4 py-6">
+                <div class="flex items-center gap-4">
+                    <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center ping-pong-animation">
+                        <span class="text-primary-600 font-bold text-3xl">🏓</span>
+                    </div>
+                    <div>
+                        <h1 class="text-3xl font-bold">PWA Asset Generator</h1>
+                        <p class="text-primary-100">Generate all required assets for your Tournament Manager PWA</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="max-w-6xl mx-auto px-4 py-8">
+            <!-- Quick Fix Section -->
+            <div class="bg-red-50 border border-red-200 rounded-xl p-6 mb-8">
+                <div class="flex items-start gap-3">
+                    <i data-lucide="alert-triangle" class="w-6 h-6 text-red-600 flex-shrink-0 mt-1"></i>
+                    <div class="flex-1">
+                        <h2 class="text-lg font-semibold text-red-900 mb-2">Missing PWA Assets Detected</h2>
+                        <p class="text-red-800 mb-4">Your tournament manager is missing the required PWA assets. You need to create an <code class="bg-red-100 px-2 py-1 rounded">/assets/</code> folder with the following files:</p>
+                        <div class="grid md:grid-cols-2 gap-4 text-sm text-red-700">
+                            <div>
+                                <strong>Required Icons:</strong>
+                                <ul class="ml-4 mt-1 space-y-1">
+                                    <li>• favicon.ico</li>
+                                    <li>• icon-72.png</li>
+                                    <li>• icon-96.png</li>
+                                    <li>• icon-128.png</li>
+                                    <li>• icon-144.png</li>
+                                    <li>• icon-152.png</li>
+                                    <li>• icon-192.png</li>
+                                    <li>• icon-384.png</li>
+                                    <li>• icon-512.png</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <strong>Optional Assets:</strong>
+                                <ul class="ml-4 mt-1 space-y-1">
+                                    <li>• screenshot-mobile.png</li>
+                                    <li>• screenshot-desktop.png</li>
+                                    <li>• shortcut-create.png</li>
+                                    <li>• shortcut-live.png</li>
+                                    <li>• shortcut-rankings.png</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Asset Generator -->
+            <div class="grid lg:grid-cols-2 gap-8">
+                <!-- Left Column: Generator Controls -->
+                <div class="space-y-6">
+                    <!-- Logo Customization -->
+                    <div class="bg-white rounded-xl border border-gray-200 p-6">
+                        <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                            <i data-lucide="palette" class="w-5 h-5 text-primary-600"></i>
+                            Customize Your Logo
+                        </h3>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Background Color</label>
+                                <div class="flex items-center gap-3">
+                                    <input type="color" id="bgColor" value="#3B82F6" 
+                                           class="w-12 h-10 border border-gray-300 rounded cursor-pointer">
+                                    <input type="text" id="bgColorText" value="#3B82F6" 
+                                           class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Icon/Text Color</label>
+                                <div class="flex items-center gap-3">
+                                    <input type="color" id="iconColor" value="#ffffff" 
+                                           class="w-12 h-10 border border-gray-300 rounded cursor-pointer">
+                                    <input type="text" id="iconColorText" value="#ffffff" 
+                                           class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Logo Style</label>
+                                <select id="logoStyle" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                                    <option value="emoji">🏓 Emoji Style</option>
+                                    <option value="text">PP Text Style</option>
+                                    <option value="circle">● Circle Style</option>
+                                    <option value="minimal">Minimal Style</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Border Radius</label>
+                                <input type="range" id="borderRadius" min="0" max="50" value="25" 
+                                       class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                                <div class="flex justify-between text-xs text-gray-500 mt-1">
+                                    <span>Square</span>
+                                    <span id="radiusValue">25%</span>
+                                    <span>Circle</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Generation Controls -->
+                    <div class="bg-white rounded-xl border border-gray-200 p-6">
+                        <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                            <i data-lucide="download" class="w-5 h-5 text-primary-600"></i>
+                            Generate Assets
+                        </h3>
+                        
+                        <div class="space-y-4">
+                            <button id="generateIcons" class="w-full bg-primary-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-primary-700 transition-colors flex items-center justify-center gap-2">
+                                <i data-lucide="image" class="w-5 h-5"></i>
+                                Generate All Icons
+                            </button>
+                            
+                            <button id="generateScreenshots" class="w-full bg-green-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
+                                <i data-lucide="camera" class="w-5 h-5"></i>
+                                Generate Screenshots
+                            </button>
+                            
+                            <button id="downloadAll" class="w-full bg-purple-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors flex items-center justify-center gap-2">
+                                <i data-lucide="download-cloud" class="w-5 h-5"></i>
+                                Download All Assets (ZIP)
+                            </button>
+                        </div>
+                        
+                        <div id="progressBar" class="hidden mt-4">
+                            <div class="flex justify-between text-sm text-gray-600 mb-1">
+                                <span>Generating assets...</span>
+                                <span id="progressText">0%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div id="progressFill" class="bg-primary-600 h-2 rounded-full download-progress" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Instructions -->
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-6">
+                        <h3 class="text-lg font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                            <i data-lucide="info" class="w-5 h-5"></i>
+                            Installation Instructions
+                        </h3>
+                        <ol class="text-blue-800 space-y-2 text-sm">
+                            <li>1. Create an <code class="bg-blue-100 px-2 py-1 rounded">assets/</code> folder in your pingpong directory</li>
+                            <li>2. Generate and download all the assets using the tools above</li>
+                            <li>3. Upload all generated files to the <code class="bg-blue-100 px-2 py-1 rounded">/pingpong/assets/</code> folder</li>
+                            <li>4. Clear your browser cache and reload the app</li>
+                            <li>5. Check browser console for any remaining 404 errors</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <!-- Right Column: Preview -->
+                <div class="space-y-6">
+                    <!-- Live Preview -->
+                    <div class="bg-white rounded-xl border border-gray-200 p-6">
+                        <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                            <i data-lucide="eye" class="w-5 h-5 text-primary-600"></i>
+                            Live Preview
+                        </h3>
+                        
+                        <div class="text-center">
+                            <div class="inline-flex items-center justify-center w-32 h-32 rounded-3xl mb-4 shadow-lg" 
+                                 id="previewIcon" style="background: #3B82F6;">
+                                <span class="text-white text-5xl">🏓</span>
+                            </div>
+                            
+                            <h4 class="font-semibold text-gray-900 mb-2">Tournament Manager</h4>
+                            <p class="text-gray-600 text-sm">Professional ping pong tournament management</p>
+                        </div>
+                        
+                        <!-- Size Examples -->
+                        <div class="mt-6">
+                            <h5 class="font-medium text-gray-700 mb-3">Icon Sizes Preview</h5>
+                            <div class="grid grid-cols-4 gap-4">
+                                <div class="text-center">
+                                    <div class="w-16 h-16 rounded-lg mx-auto mb-2 flex items-center justify-center preview-size" 
+                                         data-size="64" style="background: #3B82F6;">
+                                        <span class="text-white text-2xl">🏓</span>
+                                    </div>
+                                    <span class="text-xs text-gray-500">64px</span>
+                                </div>
+                                <div class="text-center">
+                                    <div class="w-12 h-12 rounded-lg mx-auto mb-2 flex items-center justify-center preview-size" 
+                                         data-size="48" style="background: #3B82F6;">
+                                        <span class="text-white text-lg">🏓</span>
+                                    </div>
+                                    <span class="text-xs text-gray-500">48px</span>
+                                </div>
+                                <div class="text-center">
+                                    <div class="w-8 h-8 rounded-md mx-auto mb-2 flex items-center justify-center preview-size" 
+                                         data-size="32" style="background: #3B82F6;">
+                                        <span class="text-white text-sm">🏓</span>
+                                    </div>
+                                    <span class="text-xs text-gray-500">32px</span>
+                                </div>
+                                <div class="text-center">
+                                    <div class="w-6 h-6 rounded mx-auto mb-2 flex items-center justify-center preview-size" 
+                                         data-size="24" style="background: #3B82F6;">
+                                        <span class="text-white text-xs">🏓</span>
+                                    </div>
+                                    <span class="text-xs text-gray-500">24px</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Generated Assets -->
+                    <div class="bg-white rounded-xl border border-gray-200 p-6">
+                        <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                            <i data-lucide="grid-3x3" class="w-5 h-5 text-primary-600"></i>
+                            Generated Assets
+                        </h3>
+                        
+                        <div id="generatedAssets" class="grid grid-cols-3 gap-4">
+                            <div class="text-center p-4 border-2 border-dashed border-gray-300 rounded-lg">
+                                <i data-lucide="image-plus" class="w-8 h-8 text-gray-400 mx-auto mb-2"></i>
+                                <p class="text-gray-500 text-sm">Generate assets to see preview</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- File Structure -->
+                    <div class="bg-white rounded-xl border border-gray-200 p-6">
+                        <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                            <i data-lucide="folder-tree" class="w-5 h-5 text-primary-600"></i>
+                            Expected File Structure
+                        </h3>
+                        
+                        <div class="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm">
+                            <div>pingpong/</div>
+                            <div>├── assets/</div>
+                            <div>│   ├── favicon.ico</div>
+                            <div>│   ├── icon-72.png</div>
+                            <div>│   ├── icon-96.png</div>
+                            <div>│   ├── icon-128.png</div>
+                            <div>│   ├── icon-144.png</div>
+                            <div>│   ├── icon-152.png</div>
+                            <div>│   ├── icon-192.png</div>
+                            <div>│   ├── icon-384.png</div>
+                            <div>│   ├── icon-512.png</div>
+                            <div>│   ├── screenshot-mobile.png</div>
+                            <div>│   ├── screenshot-desktop.png</div>
+                            <div>│   └── shortcut-*.png</div>
+                            <div>├── index.php</div>
+                            <div>├── manifest.json</div>
+                            <div>└── sw.js</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // State
+        let currentSettings = {
+            bgColor: '#3B82F6',
+            iconColor: '#ffffff',
+            logoStyle: 'emoji',
+            borderRadius: 25
+        };
+
+        // DOM elements
+        const bgColorInput = document.getElementById('bgColor');
+        const bgColorText = document.getElementById('bgColorText');
+        const iconColorInput = document.getElementById('iconColor');
+        const iconColorText = document.getElementById('iconColorText');
+        const logoStyleSelect = document.getElementById('logoStyle');
+        const borderRadiusInput = document.getElementById('borderRadius');
+        const radiusValue = document.getElementById('radiusValue');
+        const previewIcon = document.getElementById('previewIcon');
+        const generatedAssets = document.getElementById('generatedAssets');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+
+        // Update preview when settings change
+        function updatePreview() {
+            currentSettings.bgColor = bgColorInput.value;
+            currentSettings.iconColor = iconColorInput.value;
+            currentSettings.logoStyle = logoStyleSelect.value;
+            currentSettings.borderRadius = parseInt(borderRadiusInput.value);
+
+            // Update preview icon
+            previewIcon.style.background = currentSettings.bgColor;
+            previewIcon.style.borderRadius = `${currentSettings.borderRadius}%`;
+            
+            // Update icon content based on style
+            let iconContent = '';
+            switch (currentSettings.logoStyle) {
+                case 'emoji':
+                    iconContent = '🏓';
+                    break;
+                case 'text':
+                    iconContent = 'PP';
+                    break;
+                case 'circle':
+                    iconContent = '●';
+                    break;
+                case 'minimal':
+                    iconContent = '▲';
+                    break;
+            }
+            
+            previewIcon.innerHTML = `<span style="color: ${currentSettings.iconColor}; font-size: 3.5rem; font-weight: bold;">${iconContent}</span>`;
+
+            // Update size previews
+            document.querySelectorAll('.preview-size').forEach(element => {
+                element.style.background = currentSettings.bgColor;
+                element.style.borderRadius = `${Math.min(currentSettings.borderRadius * 0.5, 50)}%`;
+                const size = parseInt(element.dataset.size);
+                const fontSize = size < 32 ? '0.75rem' : size < 48 ? '1rem' : size < 64 ? '1.25rem' : '1.5rem';
+                element.innerHTML = `<span style="color: ${currentSettings.iconColor}; font-size: ${fontSize};">${iconContent}</span>`;
+            });
+
+            // Update radius display
+            radiusValue.textContent = `${currentSettings.borderRadius}%`;
+        }
+
+        // Event listeners
+        bgColorInput.addEventListener('input', (e) => {
+            bgColorText.value = e.target.value;
+            updatePreview();
+        });
+
+        bgColorText.addEventListener('input', (e) => {
+            bgColorInput.value = e.target.value;
+            updatePreview();
+        });
+
+        iconColorInput.addEventListener('input', (e) => {
+            iconColorText.value = e.target.value;
+            updatePreview();
+        });
+
+        iconColorText.addEventListener('input', (e) => {
+            iconColorInput.value = e.target.value;
+            updatePreview();
+        });
+
+        logoStyleSelect.addEventListener('change', updatePreview);
+        borderRadiusInput.addEventListener('input', updatePreview);
+
+        // Generate icons
+        function generateIcon(size, settings = currentSettings) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = size;
+            canvas.height = size;
+
+            // Background
+            const radius = (settings.borderRadius / 100) * (size / 2);
+            ctx.fillStyle = settings.bgColor;
+            
+            if (radius > 0) {
+                // Rounded rectangle
+                ctx.beginPath();
+                ctx.roundRect(0, 0, size, size, radius);
+                ctx.fill();
+            } else {
+                // Square
+                ctx.fillRect(0, 0, size, size);
+            }
+
+            // Icon content
+            ctx.fillStyle = settings.iconColor;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            let content = '';
+            let fontSize = size * 0.6;
+            let fontFamily = 'Inter, Arial, sans-serif';
+            
+            switch (settings.logoStyle) {
+                case 'emoji':
+                    content = '🏓';
+                    fontSize = size * 0.7;
+                    fontFamily = 'Arial Unicode MS, Apple Color Emoji, Segoe UI Emoji';
+                    break;
+                case 'text':
+                    content = 'PP';
+                    fontSize = size * 0.4;
+                    ctx.font = `bold ${fontSize}px ${fontFamily}`;
+                    break;
+                case 'circle':
+                    content = '●';
+                    fontSize = size * 0.8;
+                    break;
+                case 'minimal':
+                    content = '▲';
+                    fontSize = size * 0.6;
+                    break;
+            }
+
+            if (settings.logoStyle !== 'text') {
+                ctx.font = `${fontSize}px ${fontFamily}`;
+            }
+            
+            ctx.fillText(content, size / 2, size / 2);
+
+            return canvas;
+        }
+
+        // Generate all icons
+        async function generateAllIcons() {
+            const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+            const assets = [];
+
+            showProgress(0);
+
+            for (let i = 0; i < sizes.length; i++) {
+                const size = sizes[i];
+                const canvas = generateIcon(size);
+                
+                // Convert to blob
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                
+                assets.push({
+                    name: `icon-${size}.png`,
+                    blob: blob,
+                    size: size,
+                    canvas: canvas
+                });
+
+                showProgress(((i + 1) / sizes.length) * 100);
+            }
+
+            // Generate favicon
+            const faviconCanvas = generateIcon(32);
+            const faviconBlob = await new Promise(resolve => faviconCanvas.toBlob(resolve, 'image/png'));
+            assets.push({
+                name: 'favicon.ico',
+                blob: faviconBlob,
+                size: 32,
+                canvas: faviconCanvas
+            });
+
+            hideProgress();
+            displayGeneratedAssets(assets);
+            
+            // Store for download
+            window.generatedAssets = assets;
+
+            showNotification('Icons generated successfully!', 'success');
+        }
+
+        // Show progress
+        function showProgress(percent) {
+            progressBar.classList.remove('hidden');
+            progressFill.style.width = `${percent}%`;
+            progressText.textContent = `${Math.round(percent)}%`;
+        }
+
+        // Hide progress
+        function hideProgress() {
+            setTimeout(() => {
+                progressBar.classList.add('hidden');
+            }, 500);
+        }
+
+        // Display generated assets
+        function displayGeneratedAssets(assets) {
+            generatedAssets.innerHTML = '';
+            
+            assets.forEach(asset => {
+                const div = document.createElement('div');
+                div.className = 'generated-icon text-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-primary-300 hover:shadow-md';
+                
+                const img = document.createElement('img');
+                img.src = asset.canvas.toDataURL();
+                img.className = 'w-12 h-12 mx-auto mb-2 rounded';
+                img.alt = asset.name;
+                
+                const name = document.createElement('p');
+                name.textContent = asset.name;
+                name.className = 'text-xs font-medium text-gray-700';
+                
+                const size = document.createElement('p');
+                size.textContent = `${asset.size}px`;
+                size.className = 'text-xs text-gray-500';
+                
+                div.appendChild(img);
+                div.appendChild(name);
+                div.appendChild(size);
+                
+                // Download individual asset on click
+                div.addEventListener('click', () => {
+                    downloadAsset(asset);
+                });
+                
+                generatedAssets.appendChild(div);
+            });
+        }
+
+        // Download individual asset
+        function downloadAsset(asset) {
+            const url = URL.createObjectURL(asset.blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = asset.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showNotification(`Downloaded ${asset.name}`, 'success');
+        }
+
+        // Download all assets as ZIP
+        async function downloadAllAssets() {
+            if (!window.generatedAssets) {
+                showNotification('Please generate assets first', 'warning');
+                return;
+            }
+
+            showNotification('Preparing ZIP download...', 'info');
+            
+            // For this demo, we'll download files individually
+            // In a real implementation, you'd use a library like JSZip
+            for (const asset of window.generatedAssets) {
+                downloadAsset(asset);
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            showNotification('All assets downloaded!', 'success');
+        }
+
+        // Generate screenshots (mockup)
+        function generateScreenshots() {
+            showNotification('Screenshot generation is a mockup feature. In reality, you would use tools like Puppeteer or manual screenshots.', 'info');
+        }
+
+        // Show notification
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg text-white max-w-md transform transition-all duration-300 translate-x-full ${
+                type === 'success' ? 'bg-green-500' : 
+                type === 'warning' ? 'bg-yellow-500' : 
+                type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+            }`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            // Slide in
+            setTimeout(() => {
+                notification.classList.remove('translate-x-full');
+            }, 10);
+            
+            // Auto remove
+            setTimeout(() => {
+                notification.classList.add('translate-x-full');
+                setTimeout(() => {
+                    if (notification.parentElement) {
+                        notification.remove();
+                    }
+                }, 300);
+            }, 4000);
+        }
+
+        // Event listeners for buttons
+        document.getElementById('generateIcons').addEventListener('click', generateAllIcons);
+        document.getElementById('generateScreenshots').addEventListener('click', generateScreenshots);
+        document.getElementById('downloadAll').addEventListener('click', downloadAllAssets);
+
+        // Initial preview update
+        updatePreview();
+    </script>
+</body>
+</html>
