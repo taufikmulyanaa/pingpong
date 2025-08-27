@@ -8,9 +8,9 @@
  * @license MIT
  */
 
-// Prevent direct access
-if (!defined('PHP_VERSION_ID') || PHP_VERSION_ID < 80400) {
-    die('PHP 8.4+ is required to run this application.');
+// Prevent direct access and check PHP version
+if (!defined('PHP_VERSION_ID') || PHP_VERSION_ID < 80200) {
+    die('PHP 8.2+ is required to run this application.');
 }
 
 // Application Information
