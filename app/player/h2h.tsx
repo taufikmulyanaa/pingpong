@@ -88,23 +88,15 @@ export default function HeadToHeadScreen() {
         fetchData();
     }, [opponentId, profile?.id]);
 
-    // Demo data if no real matches
-    const demoStats = { wins: 3, losses: 2, draws: 0 };
-    const displayStats = h2hMatches.length > 0 ? stats : demoStats;
+    // Display data
+    const displayStats = h2hMatches.length > 0 ? stats : { wins: 0, losses: 0, draws: 0 };
     const totalMatches = displayStats.wins + displayStats.losses + displayStats.draws;
     const winRate = totalMatches > 0 ? Math.round((displayStats.wins / totalMatches) * 100) : 0;
 
-    // Demo opponent if not loaded
-    const displayOpponent = opponent || {
-        id: opponentId || "demo",
-        name: "Budi Santoso",
-        avatar_url: "",
-        rating_mr: 1450,
-        level: 12,
-        wins: 45,
-        losses: 23,
-        total_matches: 68,
-    };
+    // Helper to get formatted name
+    const getOpponentName = () => opponent?.name || "Lawan";
+    const getOpponentAvatar = () => opponent?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(getOpponentName())}&background=random`;
+    const getOpponentMr = () => opponent?.rating_mr || 0;
 
     return (
         <>
@@ -146,16 +138,24 @@ export default function HeadToHeadScreen() {
 
                         {/* Player 2 (Opponent) */}
                         <View style={styles.playerSide}>
-                            <Image
-                                source={{ uri: displayOpponent.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayOpponent.name)}&background=random` }}
-                                style={styles.playerAvatar}
-                            />
-                            <Text style={[styles.playerName, { color: textColor }]} numberOfLines={1}>
-                                {displayOpponent.name}
-                            </Text>
-                            <Text style={[styles.playerMr, { color: mutedColor }]}>
-                                {displayOpponent.rating_mr} MR
-                            </Text>
+                            {opponent ? (
+                                <>
+                                    <Image
+                                        source={{ uri: getOpponentAvatar() }}
+                                        style={styles.playerAvatar}
+                                    />
+                                    <Text style={[styles.playerName, { color: textColor }]} numberOfLines={1}>
+                                        {getOpponentName()}
+                                    </Text>
+                                    <Text style={[styles.playerMr, { color: mutedColor }]}>
+                                        {getOpponentMr()} MR
+                                    </Text>
+                                </>
+                            ) : (
+                                <View style={{ alignItems: 'center', justifyContent: 'center', height: 100 }}>
+                                    <Text style={{ color: mutedColor }}>Loading...</Text>
+                                </View>
+                            )}
                         </View>
                     </View>
 
@@ -194,38 +194,45 @@ export default function HeadToHeadScreen() {
                     <View style={[styles.historyCard, { backgroundColor: cardColor }]}>
                         <Text style={[styles.historyTitle, { color: textColor }]}>Riwayat Pertandingan</Text>
 
-                        {/* Demo matches */}
-                        {[1, 2, 3, 4, 5].map((i) => {
-                            const isWin = i % 2 === 1;
-                            return (
-                                <View key={i} style={styles.matchRow}>
-                                    <View style={[styles.resultBadge, { backgroundColor: isWin ? "#10B98120" : "#EF444420" }]}>
-                                        <MaterialIcons
-                                            name={isWin ? "emoji-events" : "close"}
-                                            size={16}
-                                            color={isWin ? "#10B981" : "#EF4444"}
-                                        />
-                                    </View>
-                                    <View style={styles.matchInfo}>
-                                        <Text style={[styles.matchScore, { color: textColor }]}>
-                                            {isWin ? "3" : "1"} - {isWin ? "1" : "3"}
+                        {/* H2H Matches List */}
+                        {h2hMatches.length === 0 ? (
+                            <View style={{ padding: 20, alignItems: "center" }}>
+                                <Text style={{ color: mutedColor }}>Belum ada riwayat pertandingan</Text>
+                            </View>
+                        ) : (
+                            h2hMatches.map((match) => {
+                                const isWin = match.winner_id === profile?.id;
+                                return (
+                                    <View key={match.id} style={styles.matchRow}>
+                                        <View style={[styles.resultBadge, { backgroundColor: isWin ? "#10B98120" : "#EF444420" }]}>
+                                            <MaterialIcons
+                                                name={isWin ? "emoji-events" : "close"}
+                                                size={16}
+                                                color={isWin ? "#10B981" : "#EF4444"}
+                                            />
+                                        </View>
+                                        <View style={styles.matchInfo}>
+                                            <Text style={[styles.matchScore, { color: textColor }]}>
+                                                {isWin ? match.player1_score : match.player2_score} - {isWin ? match.player2_score : match.player1_score}
+                                            </Text>
+                                            <Text style={[styles.matchType, { color: mutedColor }]}>
+                                                {match.match_type}
+                                            </Text>
+                                        </View>
+                                        <Text style={[styles.matchDate, { color: mutedColor }]}>
+                                            {new Date(match.date).toLocaleDateString()}
                                         </Text>
-                                        <Text style={[styles.matchType, { color: mutedColor }]}>
-                                            Ranked • Best of 5
-                                        </Text>
                                     </View>
-                                    <Text style={[styles.matchDate, { color: mutedColor }]}>
-                                        {i} hari lalu
-                                    </Text>
-                                </View>
-                            );
-                        })}
+                                );
+                            })
+                        )}
                     </View>
 
                     {/* Challenge Button */}
                     <TouchableOpacity
-                        style={styles.challengeBtn}
-                        onPress={() => router.push({ pathname: "/challenge/new", params: { opponentId: displayOpponent.id } })}
+                        style={[styles.challengeBtn, { opacity: opponent ? 1 : 0.5 }]}
+                        disabled={!opponent}
+                        onPress={() => opponent && router.push({ pathname: "/challenge/new", params: { opponentId: opponent.id } })}
                     >
                         <MaterialIcons name="sports-tennis" size={20} color="#fff" />
                         <Text style={styles.challengeBtnText}>Tantang Lagi</Text>

@@ -25,54 +25,7 @@ interface Notification {
     created_at: string;
 }
 
-// Mock notifications for demo
-const mockNotifications: Notification[] = [
-    {
-        id: "1",
-        type: "CHALLENGE",
-        title: "Tantangan Baru!",
-        body: "Budi Santoso mengajak kamu bermain Ranked Match",
-        data: { challengeId: "123" },
-        is_read: false,
-        created_at: new Date(Date.now() - 5 * 60000).toISOString(),
-    },
-    {
-        id: "2",
-        type: "MATCH_RESULT",
-        title: "Pertandingan Selesai",
-        body: "Kamu menang melawan Alex Wijaya! +25 MR",
-        data: { matchId: "456" },
-        is_read: false,
-        created_at: new Date(Date.now() - 60 * 60000).toISOString(),
-    },
-    {
-        id: "3",
-        type: "BADGE",
-        title: "Lencana Baru! 🎉",
-        body: "Kamu mendapatkan lencana 'Hot Streak' - Menang 5 berturut-turut!",
-        data: { badgeCode: "streak_5" },
-        is_read: true,
-        created_at: new Date(Date.now() - 2 * 60 * 60000).toISOString(),
-    },
-    {
-        id: "4",
-        type: "TOURNAMENT",
-        title: "Turnamen Dimulai",
-        body: "Turnamen Bulungan Open dimulai besok. Siap tempur!",
-        data: { tournamentId: "789" },
-        is_read: true,
-        created_at: new Date(Date.now() - 24 * 60 * 60000).toISOString(),
-    },
-    {
-        id: "5",
-        type: "BOOKING",
-        title: "Booking Dikonfirmasi",
-        body: "Booking meja di GOR Bulungan untuk 15 Des 2024 jam 14:00 dikonfirmasi.",
-        data: { bookingId: "abc" },
-        is_read: true,
-        created_at: new Date(Date.now() - 2 * 24 * 60 * 60000).toISOString(),
-    },
-];
+// Mock data removed
 
 export default function NotificationsScreen() {
     const router = useRouter();
@@ -80,7 +33,7 @@ export default function NotificationsScreen() {
     const isDark = colorScheme === "dark";
     const { profile } = useAuthStore();
 
-    const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+    const [notifications, setNotifications] = useState<Notification[]>([]);
     const [refreshing, setRefreshing] = useState(false);
 
     const bgColor = Colors.background;

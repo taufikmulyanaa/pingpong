@@ -13,6 +13,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams, Stack } from "expo-router";
 import { Colors, SharedStyles, ExtendedColors } from "../../src/lib/constants";
 import { useAuthStore } from "../../src/stores/authStore";
+import { supabase } from "../../src/lib/supabase";
 
 interface MockPlayer {
     id: string;
@@ -26,14 +27,7 @@ interface MockPlayer {
     city: string;
 }
 
-// Mock players database
-const mockPlayers: Record<string, MockPlayer> = {
-    "1": { id: "1", name: "Budi Santoso", username: "budi_tt", avatar_url: "", rating_mr: 2150, level: 25, wins: 145, losses: 32, city: "Jakarta" },
-    "2": { id: "2", name: "Alex Wijaya", username: "alex_ping", avatar_url: "", rating_mr: 2080, level: 22, wins: 128, losses: 41, city: "Jakarta" },
-    "3": { id: "3", name: "Dimas Pratama", username: "dimas_pp", avatar_url: "", rating_mr: 2020, level: 20, wins: 112, losses: 38, city: "Bandung" },
-    "4": { id: "4", name: "Eko Prasetyo", username: "eko_master", avatar_url: "", rating_mr: 1950, level: 18, wins: 98, losses: 42, city: "Jakarta" },
-    "5": { id: "5", name: "Fajar Nugroho", username: "fajar_smash", avatar_url: "", rating_mr: 1890, level: 17, wins: 85, losses: 45, city: "Surabaya" },
-};
+// Mock players removed
 
 export default function NewChallengeScreen() {
     const router = useRouter();
@@ -43,7 +37,7 @@ export default function NewChallengeScreen() {
     const [matchType, setMatchType] = useState<"RANKED" | "FRIENDLY">("RANKED");
     const [bestOf, setBestOf] = useState(5);
     const [isLoading, setIsLoading] = useState(false);
-    const [opponent, setOpponent] = useState<MockPlayer | null>(null);
+    const [opponent, setOpponent] = useState<any>(null);
 
     // Light mode colors
     const bgColor = Colors.background;
@@ -52,24 +46,25 @@ export default function NewChallengeScreen() {
     const mutedColor = Colors.muted;
     const borderColor = Colors.border;
 
-    // Load opponent from mock data
+    // Load opponent from Supabase
     useEffect(() => {
-        if (playerId && mockPlayers[playerId]) {
-            setOpponent(mockPlayers[playerId]);
-        } else {
-            // Fallback mock data
-            setOpponent({
-                id: playerId || "0",
-                name: "Pemain Demo",
-                username: "demo_player",
-                avatar_url: "",
-                rating_mr: 1500,
-                level: 10,
-                wins: 50,
-                losses: 30,
-                city: "Jakarta",
-            });
+        async function fetchOpponent() {
+            if (playerId) {
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', playerId)
+                    .single();
+
+                if (data) {
+                    setOpponent(data);
+                } else {
+                    // Handle error or not found
+                    console.log("Opponent not found");
+                }
+            }
         }
+        fetchOpponent();
     }, [playerId]);
 
     const handleChallenge = () => {

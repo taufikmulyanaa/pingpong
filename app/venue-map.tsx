@@ -29,57 +29,7 @@ interface Venue {
     distance: string;
 }
 
-// Mock venues with coordinates (Jakarta area)
-const mockVenues: Venue[] = [
-    {
-        id: "1",
-        name: "GOR Bulungan",
-        address: "Jl. Bulungan No. 1",
-        city: "Jakarta Selatan",
-        latitude: -6.2415,
-        longitude: 106.7978,
-        rating: 4.8,
-        price_per_hour: 50000,
-        image: "https://placehold.co/100x100/1E3A8A/white?text=GOR",
-        distance: "1.2 km",
-    },
-    {
-        id: "2",
-        name: "PTM Sejahtera",
-        address: "Jl. Kemang Raya No. 45",
-        city: "Jakarta Selatan",
-        latitude: -6.2560,
-        longitude: 106.8145,
-        rating: 4.5,
-        price_per_hour: 40000,
-        image: "https://placehold.co/100x100/DC2626/white?text=PTM",
-        distance: "2.5 km",
-    },
-    {
-        id: "3",
-        name: "Pingpong Arena BSD",
-        address: "BSD City, Serpong",
-        city: "Tangerang Selatan",
-        latitude: -6.2889,
-        longitude: 106.6640,
-        rating: 4.7,
-        price_per_hour: 60000,
-        image: "https://placehold.co/100x100/059669/white?text=Arena",
-        distance: "8.3 km",
-    },
-    {
-        id: "4",
-        name: "Sport Center PIK",
-        address: "Pantai Indah Kapuk",
-        city: "Jakarta Utara",
-        latitude: -6.1025,
-        longitude: 106.7489,
-        rating: 4.6,
-        price_per_hour: 75000,
-        image: "https://placehold.co/100x100/7C3AED/white?text=PIK",
-        distance: "12.1 km",
-    },
-];
+// Mock data removed
 
 export default function VenueMapScreen() {
     const router = useRouter();
@@ -87,6 +37,13 @@ export default function VenueMapScreen() {
     const isDark = colorScheme === "dark";
 
     const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
+    const [venues, setVenues] = useState<Venue[]>([]); // Use state instead of mock
+
+    // Fetch venues (placeholder logic for now)
+    React.useEffect(() => {
+        // In real app, fetch from Supabase
+        setVenues([]);
+    }, []);
 
     const bgColor = Colors.background;
     const cardColor = Colors.surface;
@@ -127,7 +84,7 @@ export default function VenueMapScreen() {
                     </View>
 
                     {/* Venue Markers (simulated) */}
-                    {mockVenues.map((venue, idx) => (
+                    {venues.map((venue, idx) => (
                         <TouchableOpacity
                             key={venue.id}
                             style={[
@@ -149,7 +106,7 @@ export default function VenueMapScreen() {
                 <View style={[styles.venueListContainer, { backgroundColor: bgColor }]}>
                     <View style={styles.dragHandle} />
                     <Text style={[styles.listTitle, { color: textColor }]}>
-                        Venue Terdekat ({mockVenues.length})
+                        Venue Terdekat ({venues.length})
                     </Text>
 
                     <ScrollView
@@ -157,42 +114,48 @@ export default function VenueMapScreen() {
                         showsHorizontalScrollIndicator={false}
                         contentContainerStyle={styles.venueList}
                     >
-                        {mockVenues.map((venue) => (
-                            <TouchableOpacity
-                                key={venue.id}
-                                style={[
-                                    styles.venueCard,
-                                    {
-                                        backgroundColor: cardColor,
-                                        borderColor: selectedVenue?.id === venue.id ? Colors.primary : "transparent",
-                                        borderWidth: 2,
-                                    },
-                                ]}
-                                onPress={() => {
-                                    setSelectedVenue(venue);
-                                    router.push({ pathname: "/venue/[id]", params: { id: venue.id } });
-                                }}
-                            >
-                                <Image source={{ uri: venue.image }} style={styles.venueImage} />
-                                <View style={styles.venueInfo}>
-                                    <Text style={[styles.venueName, { color: textColor }]} numberOfLines={1}>
-                                        {venue.name}
-                                    </Text>
-                                    <View style={styles.venueRating}>
-                                        <MaterialIcons name="star" size={14} color="#F59E0B" />
-                                        <Text style={[styles.ratingText, { color: textColor }]}>
-                                            {venue.rating}
+                        {venues.length > 0 ? (
+                            venues.map((venue) => (
+                                <TouchableOpacity
+                                    key={venue.id}
+                                    style={[
+                                        styles.venueCard,
+                                        {
+                                            backgroundColor: cardColor,
+                                            borderColor: selectedVenue?.id === venue.id ? Colors.primary : "transparent",
+                                            borderWidth: 2,
+                                        },
+                                    ]}
+                                    onPress={() => {
+                                        setSelectedVenue(venue);
+                                        router.push({ pathname: "/venue/[id]", params: { id: venue.id } });
+                                    }}
+                                >
+                                    <Image source={{ uri: venue.image }} style={styles.venueImage} />
+                                    <View style={styles.venueInfo}>
+                                        <Text style={[styles.venueName, { color: textColor }]} numberOfLines={1}>
+                                            {venue.name}
                                         </Text>
-                                        <Text style={[styles.distanceText, { color: mutedColor }]}>
-                                            • {venue.distance}
+                                        <View style={styles.venueRating}>
+                                            <MaterialIcons name="star" size={14} color="#F59E0B" />
+                                            <Text style={[styles.ratingText, { color: textColor }]}>
+                                                {venue.rating}
+                                            </Text>
+                                            <Text style={[styles.distanceText, { color: mutedColor }]}>
+                                                • {venue.distance}
+                                            </Text>
+                                        </View>
+                                        <Text style={[styles.venuePrice, { color: Colors.primary }]}>
+                                            {formatPrice(venue.price_per_hour)}
                                         </Text>
                                     </View>
-                                    <Text style={[styles.venuePrice, { color: Colors.primary }]}>
-                                        {formatPrice(venue.price_per_hour)}
-                                    </Text>
-                                </View>
-                            </TouchableOpacity>
-                        ))}
+                                </TouchableOpacity>
+                            ))
+                        ) : (
+                            <View style={{ padding: 20, alignItems: "center", justifyContent: "center", width: width - 40 }}>
+                                <Text style={{ color: mutedColor }}>Tidak ada venue ditemukan</Text>
+                            </View>
+                        )}
                     </ScrollView>
                 </View>
 

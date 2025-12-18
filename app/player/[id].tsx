@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
     View,
     Text,
@@ -13,27 +13,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams, Stack } from "expo-router";
 import { Colors, GripStyles, PlayStyles, getLevelTitle, SharedStyles, ExtendedColors } from "../../src/lib/constants";
 
-// Mock player data
-const mockPlayer = {
-    id: "1",
-    name: "Budi Santoso",
-    username: "@budisantoso",
-    avatar_url: "https://via.placeholder.com/112",
-    bio: "Pemain tenis meja Jakarta Selatan. Main santai tapi serius!",
-    city: "Jakarta Selatan",
-    grip_style: "PENHOLD" as const,
-    play_style: "OFFENSIVE" as const,
-    rating_mr: 1450,
-    level: 12,
-    xp: 8500,
-    total_matches: 85,
-    wins: 58,
-    losses: 27,
-    current_streak: 3,
-    best_streak: 8,
-    is_online: true,
-    joined: "Jan 2023",
-};
+import { supabase } from "../../src/lib/supabase";
 
 export default function PlayerDetailScreen() {
     const router = useRouter();
@@ -41,13 +21,36 @@ export default function PlayerDetailScreen() {
     const colorScheme = useColorScheme();
     const isDark = colorScheme === "dark";
 
-    const player = mockPlayer;
+    const [player, setPlayer] = useState<any>(null);
+
+    React.useEffect(() => {
+        async function fetchPlayer() {
+            if (!id) return;
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', id)
+                .single();
+            if (data) {
+                setPlayer(data);
+            }
+        }
+        fetchPlayer();
+    }, [id]);
 
     const bgColor = Colors.background;
     const cardColor = Colors.surface;
     const textColor = Colors.text;
     const mutedColor = Colors.muted;
     const borderColor = "rgba(0,0,0,0.05)";
+
+    if (!player) {
+        return (
+            <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: bgColor }}>
+                <Text style={{ color: textColor }}>Loading...</Text>
+            </View>
+        );
+    }
 
     const winRate = player.total_matches > 0
         ? Math.round((player.wins / player.total_matches) * 100)
@@ -105,16 +108,20 @@ export default function PlayerDetailScreen() {
 
                         {/* Style Tags */}
                         <View style={styles.styleTags}>
-                            <View style={[styles.styleTag, { backgroundColor: isDark ? "#374151" : "#F3F4F6" }]}>
-                                <Text style={[styles.styleTagText, { color: mutedColor }]}>
-                                    {GripStyles[player.grip_style]}
-                                </Text>
-                            </View>
-                            <View style={[styles.styleTag, { backgroundColor: "#FFF7ED" }]}>
-                                <Text style={[styles.styleTagText, { color: "#EA580C" }]}>
-                                    {PlayStyles[player.play_style]}
-                                </Text>
-                            </View>
+                            {player.grip_style && GripStyles[player.grip_style] && (
+                                <View style={[styles.styleTag, { backgroundColor: isDark ? "#374151" : "#F3F4F6" }]}>
+                                    <Text style={[styles.styleTagText, { color: mutedColor }]}>
+                                        {GripStyles[player.grip_style]}
+                                    </Text>
+                                </View>
+                            )}
+                            {player.play_style && PlayStyles[player.play_style] && (
+                                <View style={[styles.styleTag, { backgroundColor: "#FFF7ED" }]}>
+                                    <Text style={[styles.styleTagText, { color: "#EA580C" }]}>
+                                        {PlayStyles[player.play_style]}
+                                    </Text>
+                                </View>
+                            )}
                         </View>
                     </View>
 

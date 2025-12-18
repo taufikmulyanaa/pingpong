@@ -76,19 +76,8 @@ export default function BracketGeneratorScreen() {
     };
 
     const handleImportCSV = () => {
-        // Mock CSV import
-        const mockImport: Participant[] = [
-            { id: "1", name: "Budi Santoso", seed: 1 },
-            { id: "2", name: "Alex Wijaya", seed: 2 },
-            { id: "3", name: "Dimas Pratama", seed: 3 },
-            { id: "4", name: "Eko Prasetyo", seed: 4 },
-            { id: "5", name: "Fajar Nugroho", seed: 5 },
-            { id: "6", name: "Gilang Ramadhan", seed: 6 },
-            { id: "7", name: "Hendra Kusuma", seed: 7 },
-            { id: "8", name: "Ivan Gunawan", seed: 8 },
-        ];
-        setParticipants(mockImport);
-        alert("8 peserta diimport dari CSV!");
+        // Feature to be implemented
+        alert("Fitur import CSV akan segera tersedia!");
     };
 
     const generateBracket = () => {

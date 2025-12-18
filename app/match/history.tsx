@@ -14,70 +14,15 @@ import { useRouter, Stack } from "expo-router";
 import { Colors, SharedStyles, ExtendedColors } from "../../src/lib/constants";
 
 // Mock Data for History
-const HISTORY_DATA = [
-    {
-        id: "1",
-        opponent: "Budi Santoso",
-        opponentAvatar: "https://ui-avatars.com/api/?name=Budi+Santoso&background=random",
-        date: "18 Des 2024 • 14:30",
-        score: "3 - 1",
-        result: "WIN",
-        mrChange: "+25",
-        location: "GOR Bulungan",
-        duration: "45 min",
-    },
-    {
-        id: "2",
-        opponent: "Rizky Billar",
-        opponentAvatar: "https://ui-avatars.com/api/?name=Rizky+Billar&background=random",
-        date: "17 Des 2024 • 10:15",
-        score: "2 - 3",
-        result: "LOSS",
-        mrChange: "-15",
-        location: "PTM Sejahtera",
-        duration: "52 min",
-    },
-    {
-        id: "3",
-        opponent: "Siti Aminah",
-        opponentAvatar: "https://ui-avatars.com/api/?name=Siti+Aminah&background=random",
-        date: "16 Des 2024 • 16:45",
-        score: "3 - 0",
-        result: "WIN",
-        mrChange: "+20",
-        location: "GBK Arena",
-        duration: "30 min",
-    },
-    {
-        id: "4",
-        opponent: "Alex Wijaya",
-        opponentAvatar: "https://ui-avatars.com/api/?name=Alex+Wijaya&background=random",
-        date: "15 Des 2024 • 19:20",
-        score: "1 - 3",
-        result: "LOSS",
-        mrChange: "-12",
-        location: "GOR Soemantri",
-        duration: "40 min",
-    },
-    {
-        id: "5",
-        opponent: "Denny Caknan",
-        opponentAvatar: "https://ui-avatars.com/api/?name=Denny+Caknan&background=random",
-        date: "14 Des 2024 • 09:00",
-        score: "3 - 2",
-        result: "WIN",
-        mrChange: "+18",
-        location: "GOR Bulungan",
-        duration: "58 min",
-    },
-];
+// Mock Data Removed
 
 export default function MatchHistoryScreen() {
     const router = useRouter();
     const [filter, setFilter] = useState("ALL"); // ALL, WIN, LOSS
     const [searchQuery, setSearchQuery] = useState("");
+    const [matches, setMatches] = useState<any[]>([]);
 
-    const filteredData = HISTORY_DATA.filter(item => {
+    const filteredData = matches.filter(item => {
         const matchesFilter = filter === "ALL" || item.result === filter;
         const matchesSearch = item.opponent.toLowerCase().includes(searchQuery.toLowerCase());
         return matchesFilter && matchesSearch;
@@ -88,7 +33,7 @@ export default function MatchHistoryScreen() {
     const textColor = Colors.text;
     const mutedColor = Colors.muted;
 
-    const renderItem = ({ item }: { item: typeof HISTORY_DATA[0] }) => (
+    const renderItem = ({ item }: { item: any }) => (
         <TouchableOpacity style={[styles.historyCard, { backgroundColor: cardColor }]}>
             <View style={styles.cardHeader}>
                 <View style={styles.opponentInfo}>

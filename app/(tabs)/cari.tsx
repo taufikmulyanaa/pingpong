@@ -20,39 +20,7 @@ import { supabase } from "@/lib/supabase";
 import { Profile } from "@/types/database";
 import { useAuthStore } from "@/stores/authStore";
 
-// Mock data for players
-const mockPlayers: Partial<Profile>[] = [
-    {
-        id: "1",
-        name: "Budi Santoso",
-        avatar_url: "https://ui-avatars.com/api/?name=Budi+Santoso&background=random",
-        rating_mr: 1450,
-        grip_style: "PENHOLD",
-        play_style: "OFFENSIVE",
-        city: "GOR Bulungan",
-        is_online: true,
-    },
-    {
-        id: "2",
-        name: "Siti Aminah",
-        avatar_url: "https://ui-avatars.com/api/?name=Siti+Aminah&background=random",
-        rating_mr: 1320,
-        grip_style: "SHAKEHAND",
-        play_style: "DEFENSIVE",
-        city: "PTM Sejahtera",
-        is_online: false,
-    },
-    {
-        id: "3",
-        name: "Alex Wijaya",
-        avatar_url: "https://ui-avatars.com/api/?name=Alex+Wijaya&background=random",
-        rating_mr: 1580,
-        grip_style: "SHAKEHAND",
-        play_style: "ALLROUND",
-        city: "GBK Arena",
-        is_online: false,
-    },
-];
+// Mock data removed
 
 // Radar animation component
 const RadarView = () => {
@@ -235,7 +203,7 @@ export default function CariScreen() {
 
     const [distance, setDistance] = useState(15);
     const [skillLevel, setSkillLevel] = useState<"beginner" | "intermediate" | "pro">("intermediate");
-    const [players, setPlayers] = useState<Partial<Profile>[]>(mockPlayers);
+    const [players, setPlayers] = useState<Partial<Profile>[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
 
@@ -272,17 +240,15 @@ export default function CariScreen() {
 
             if (error) {
                 console.error("Error fetching players:", error);
-                // Fallback to mock data
-                setPlayers(mockPlayers);
+                setPlayers([]);
             } else if (data && data.length > 0) {
                 setPlayers(data);
             } else {
-                // No players found, show mock data
-                setPlayers(mockPlayers);
+                setPlayers([]);
             }
         } catch (error) {
             console.error("Error:", error);
-            setPlayers(mockPlayers);
+            setPlayers([]);
         } finally {
             setIsLoading(false);
             setRefreshing(false);
@@ -429,15 +395,24 @@ export default function CariScreen() {
                         </View>
                     </View>
 
-                    {players.map((player, index) => (
-                        <PlayerCard
-                            key={player.id}
-                            player={player}
-                            distance={2.4 + index * 1.7}
-                            onInvite={() => handleInvite(player.id!)}
-                            onProfile={() => handleProfile(player.id!)}
-                        />
-                    ))}
+                    {players.length > 0 ? (
+                        players.map((player, index) => (
+                            <PlayerCard
+                                key={player.id}
+                                player={player}
+                                distance={2.4 + index * 1.7} // Placeholder distance
+                                onInvite={() => handleInvite(player.id!)}
+                                onProfile={() => handleProfile(player.id!)}
+                            />
+                        ))
+                    ) : (
+                        <View style={[styles.emptyState, { backgroundColor: cardColor }]}>
+                            <MaterialIcons name="person-search" size={48} color={mutedColor} />
+                            <Text style={[styles.emptyStateText, { color: mutedColor }]}>
+                                Tidak ada pemain ditemukan dalam kriteria ini
+                            </Text>
+                        </View>
+                    )}
                 </View>
 
                 {/* Bottom padding */}
@@ -790,5 +765,17 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 8,
         elevation: 8,
+    },
+    emptyState: {
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 40,
+        borderRadius: 16,
+        gap: 12,
+    },
+    emptyStateText: {
+        fontSize: 14,
+        textAlign: "center",
+        paddingHorizontal: 20,
     },
 });

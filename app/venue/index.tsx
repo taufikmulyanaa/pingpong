@@ -15,62 +15,9 @@ import { useRouter, Stack } from "expo-router";
 import { Colors, Facilities, SharedStyles, ExtendedColors } from "../../src/lib/constants";
 import { supabase } from "../../src/lib/supabase";
 
-// Mock venues
-const mockVenues = [
-    {
-        id: "1",
-        name: "GOR Bulungan",
-        slug: "gor-bulungan",
-        address: "Jl. Bulungan No.1, Kebayoran Baru",
-        city: "Jakarta Selatan",
-        latitude: -6.2441,
-        longitude: 106.7973,
-        table_count: 8,
-        price_per_hour: 50000,
-        rating: 4.8,
-        review_count: 124,
-        facilities: ["AC", "PARKING", "CANTEEN", "WIFI"],
-        images: ["https://placehold.co/300x200/009688/white?text=GOR+Bulungan"],
-        is_verified: true,
-        distance: 2.4,
-    },
-    {
-        id: "2",
-        name: "PTM Sejahtera",
-        slug: "ptm-sejahtera",
-        address: "Jl. Kemang Raya No.45",
-        city: "Jakarta Selatan",
-        latitude: -6.2608,
-        longitude: 106.8131,
-        table_count: 4,
-        price_per_hour: 40000,
-        rating: 4.5,
-        review_count: 67,
-        facilities: ["AC", "PARKING", "TOILET"],
-        images: ["https://placehold.co/300x200/1E3A8A/white?text=PTM+Sejahtera"],
-        is_verified: true,
-        distance: 4.1,
-    },
-    {
-        id: "3",
-        name: "GBK Arena",
-        slug: "gbk-arena",
-        address: "Gelora Bung Karno, Senayan",
-        city: "Jakarta Pusat",
-        latitude: -6.2186,
-        longitude: 106.8020,
-        table_count: 12,
-        price_per_hour: 75000,
-        rating: 4.9,
-        review_count: 203,
-        facilities: ["AC", "PARKING", "CANTEEN", "WIFI", "TOILET", "LOCKER"],
-        images: ["https://placehold.co/300x200/001064/white?text=GBK+Arena"],
-        is_verified: true,
-        distance: 5.8,
-    },
-];
+// Mock data removed
 
-const VenueCard = ({ venue, onPress }: { venue: typeof mockVenues[0]; onPress: () => void }) => {
+const VenueCard = ({ venue, onPress }: { venue: any; onPress: () => void }) => {
     const colorScheme = useColorScheme();
     const isDark = colorScheme === "dark";
 
@@ -155,7 +102,7 @@ export default function VenueListScreen() {
 
     const [searchQuery, setSearchQuery] = useState("");
     const [sortBy, setSortBy] = useState<"distance" | "rating" | "price">("distance");
-    const [venues, setVenues] = useState(mockVenues);
+    const [venues, setVenues] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
     // Fetch venues from Supabase
@@ -171,7 +118,7 @@ export default function VenueListScreen() {
 
                 if (error) {
                     console.error("Error fetching venues:", error);
-                    setVenues(mockVenues);
+                    setVenues([]);
                 } else if (data && data.length > 0) {
                     // Map Supabase data to mockVenues format
                     const mappedVenues = data.map((v: any) => ({
@@ -182,11 +129,11 @@ export default function VenueListScreen() {
                     }));
                     setVenues(mappedVenues);
                 } else {
-                    setVenues(mockVenues);
+                    setVenues([]);
                 }
             } catch (error) {
                 console.error("Error:", error);
-                setVenues(mockVenues);
+                setVenues([]);
             } finally {
                 setIsLoading(false);
             }
@@ -286,13 +233,22 @@ export default function VenueListScreen() {
                         {filteredVenues.length} venue ditemukan
                     </Text>
 
-                    {filteredVenues.map((venue) => (
-                        <VenueCard
-                            key={venue.id}
-                            venue={venue}
-                            onPress={() => router.push(`/venue/${venue.id}`)}
-                        />
-                    ))}
+                    {filteredVenues.length > 0 ? (
+                        filteredVenues.map((venue) => (
+                            <VenueCard
+                                key={venue.id}
+                                venue={venue}
+                                onPress={() => router.push(`/venue/${venue.id}`)}
+                            />
+                        ))
+                    ) : (
+                        <View style={[styles.emptyState, { backgroundColor: cardColor }]}>
+                            <MaterialIcons name="store-mall-directory" size={48} color={mutedColor} />
+                            <Text style={[styles.emptyStateText, { color: mutedColor }]}>
+                                Tidak ada venue ditemukan
+                            </Text>
+                        </View>
+                    )}
 
                     <View style={{ height: 20 }} />
                 </ScrollView>
@@ -496,5 +452,16 @@ const styles = StyleSheet.create({
     moreText: {
         fontSize: 10,
         fontWeight: "500",
+    },
+    emptyState: {
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 60,
+        borderRadius: 16,
+        gap: 12,
+    },
+    emptyStateText: {
+        fontSize: 14,
+        textAlign: "center",
     },
 });

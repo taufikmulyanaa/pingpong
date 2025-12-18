@@ -40,74 +40,7 @@ interface Participant {
     seed?: number;
 }
 
-// Mock tournament data
-const mockTournaments: Record<string, Tournament> = {
-    "1": {
-        id: "1",
-        name: "Jakarta Open 2024",
-        description: "Turnamen pingpong tingkat nasional dengan peserta dari seluruh Indonesia. Pertandingan menggunakan format single elimination dengan perebutan juara 3.",
-        rules: "• Best of 5 games\n• ITTF Rules\n• Bola: DHS D40+\n• Meja: Butterfly\n• Check-in 30 menit sebelum pertandingan",
-        start_date: "2024-12-28",
-        end_date: "2024-12-29",
-        max_participants: 64,
-        current_participants: 48,
-        entry_fee: 150000,
-        prize_pool: 10000000,
-        format: "Single Elimination",
-        status: "REGISTRATION",
-        venue_name: "GOR Bulungan",
-        city: "Jakarta Selatan",
-        categories: ["Tunggal Putra", "Tunggal Putri"],
-        organizer: "PingPong Hub Official",
-        banner_url: "https://placehold.co/600x200/001064/FFEB00?text=Jakarta+Open+2024",
-    },
-    "2": {
-        id: "2",
-        name: "BSD Cup Series",
-        description: "Turnamen mingguan di BSD untuk semua level pemain.",
-        start_date: "2024-12-21",
-        end_date: "2024-12-21",
-        max_participants: 32,
-        current_participants: 28,
-        entry_fee: 75000,
-        prize_pool: 3000000,
-        format: "Round Robin",
-        status: "REGISTRATION",
-        venue_name: "Sport Center BSD",
-        city: "Tangerang",
-        categories: ["Tunggal"],
-        organizer: "BSD Table Tennis Club",
-    },
-    "3": {
-        id: "3",
-        name: "Kemang Masters",
-        description: "Turnamen khusus veteran usia 40 tahun ke atas.",
-        start_date: "2024-12-18",
-        end_date: "2024-12-18",
-        max_participants: 24,
-        current_participants: 24,
-        entry_fee: 100000,
-        prize_pool: 5000000,
-        format: "Single Elimination",
-        status: "ONGOING",
-        venue_name: "Kemang Sports Club",
-        city: "Jakarta Selatan",
-        categories: ["Veteran 40+"],
-        organizer: "Kemang TT Community",
-    },
-};
-
-// Mock participants
-const mockParticipants: Participant[] = [
-    { id: "1", name: "Budi Santoso", rating_mr: 2150, seed: 1 },
-    { id: "2", name: "Alex Wijaya", rating_mr: 2080, seed: 2 },
-    { id: "3", name: "Dimas Pratama", rating_mr: 2020, seed: 3 },
-    { id: "4", name: "Eko Prasetyo", rating_mr: 1950, seed: 4 },
-    { id: "5", name: "Fajar Nugroho", rating_mr: 1890, seed: 5 },
-    { id: "6", name: "Gilang Ramadhan", rating_mr: 1850, seed: 6 },
-    { id: "7", name: "Hendra Kusuma", rating_mr: 1820, seed: 7 },
-    { id: "8", name: "Ivan Gunawan", rating_mr: 1800, seed: 8 },
-];
+// Mock data removed
 
 export default function TournamentDetailScreen() {
     const router = useRouter();
@@ -124,17 +57,20 @@ export default function TournamentDetailScreen() {
     const borderColor = Colors.border;
 
     useEffect(() => {
-        if (id && mockTournaments[id]) {
-            setTournament(mockTournaments[id]);
-        } else {
-            setTournament(mockTournaments["1"]); // Default
-        }
+        // In real app, fetch from Supabase based on id
+        setTournament(null);
     }, [id]);
 
     if (!tournament) {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
-                <Text style={{ color: textColor, textAlign: "center", marginTop: 50 }}>Loading...</Text>
+                <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+                    <MaterialIcons name="error-outline" size={48} color={mutedColor} />
+                    <Text style={{ color: textColor, marginTop: 12 }}>Turnamen tidak ditemukan</Text>
+                    <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
+                        <Text style={{ color: Colors.primary }}>Kembali</Text>
+                    </TouchableOpacity>
+                </View>
             </SafeAreaView>
         );
     }
@@ -321,7 +257,7 @@ export default function TournamentDetailScreen() {
                                 <Text style={[styles.participantCount, { color: mutedColor }]}>
                                     {tournament.current_participants} dari {tournament.max_participants} slot terisi
                                 </Text>
-                                {mockParticipants.map((p, index) => (
+                                {[].map((p: any, index) => (
                                     <TouchableOpacity
                                         key={p.id}
                                         style={[styles.participantCard, { backgroundColor: cardColor, borderColor }]}
@@ -341,6 +277,10 @@ export default function TournamentDetailScreen() {
                                         <MaterialIcons name="chevron-right" size={20} color={mutedColor} />
                                     </TouchableOpacity>
                                 ))}
+                                {/* Empty state for participants */}
+                                <View style={{ padding: 20, alignItems: "center" }}>
+                                    <Text style={{ color: mutedColor }}>Belum ada peserta</Text>
+                                </View>
                             </View>
                         )}
 

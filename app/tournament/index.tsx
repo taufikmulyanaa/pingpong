@@ -31,74 +31,12 @@ interface Tournament {
     city: string;
 }
 
-// Mock tournaments
-const mockTournaments: Tournament[] = [
-    {
-        id: "1",
-        name: "Jakarta Open 2024",
-        description: "Turnamen tingkat nasional",
-        start_date: "2024-12-28",
-        end_date: "2024-12-29",
-        max_participants: 64,
-        current_participants: 48,
-        entry_fee: 150000,
-        prize_pool: 10000000,
-        format: "Single Elimination",
-        status: "REGISTRATION",
-        venue_name: "GOR Bulungan",
-        city: "Jakarta Selatan",
-    },
-    {
-        id: "2",
-        name: "BSD Cup Series",
-        description: "Turnamen mingguan BSD",
-        start_date: "2024-12-21",
-        end_date: "2024-12-21",
-        max_participants: 32,
-        current_participants: 28,
-        entry_fee: 75000,
-        prize_pool: 3000000,
-        format: "Round Robin",
-        status: "REGISTRATION",
-        venue_name: "Sport Center BSD",
-        city: "Tangerang",
-    },
-    {
-        id: "3",
-        name: "Kemang Masters",
-        description: "Turnamen veteran 40+",
-        start_date: "2024-12-18",
-        end_date: "2024-12-18",
-        max_participants: 24,
-        current_participants: 24,
-        entry_fee: 100000,
-        prize_pool: 5000000,
-        format: "Double Elimination",
-        status: "ONGOING",
-        venue_name: "PTM Kemang",
-        city: "Jakarta Selatan",
-    },
-    {
-        id: "4",
-        name: "Surabaya Championship",
-        description: "Turnamen regional Jatim",
-        start_date: "2024-12-10",
-        end_date: "2024-12-11",
-        max_participants: 48,
-        current_participants: 48,
-        entry_fee: 125000,
-        prize_pool: 8000000,
-        format: "Single Elimination",
-        status: "COMPLETED",
-        venue_name: "GOR Kertajaya",
-        city: "Surabaya",
-    },
-];
+// Mock data removed
 
 export default function TournamentListScreen() {
     const router = useRouter();
 
-    const [tournaments, setTournaments] = useState<Tournament[]>(mockTournaments);
+    const [tournaments, setTournaments] = useState<Tournament[]>([]);
     const [refreshing, setRefreshing] = useState(false);
     const [filter, setFilter] = useState<"upcoming" | "ongoing" | "past">("upcoming");
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -150,22 +88,8 @@ export default function TournamentListScreen() {
 
     const handleCreateTournament = () => {
         if (newTournament.name && newTournament.venue) {
-            const newT: Tournament = {
-                id: String(Date.now()),
-                name: newTournament.name,
-                description: "Turnamen baru",
-                start_date: newTournament.date || new Date().toISOString().split("T")[0],
-                end_date: newTournament.date || new Date().toISOString().split("T")[0],
-                max_participants: 32,
-                current_participants: 0,
-                entry_fee: 50000,
-                prize_pool: 1000000,
-                format: "Single Elimination",
-                status: "REGISTRATION",
-                venue_name: newTournament.venue,
-                city: "Jakarta",
-            };
-            setTournaments([newT, ...tournaments]);
+            // In a real app, this would submit to the backend
+            alert("Fitur pembuatan turnamen akan segera tersedia!");
             setShowCreateModal(false);
             setNewTournament({ name: "", venue: "", date: "" });
         }

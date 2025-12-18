@@ -80,13 +80,8 @@ export default function HostTableScreen() {
     };
 
     // Mock friends list
-    const mockFriends = [
-        { id: "1", name: "Budi Santoso" },
-        { id: "2", name: "Alex Wijaya" },
-        { id: "3", name: "Dimas Pratama" },
-        { id: "4", name: "Eko Prasetyo" },
-        { id: "5", name: "Fajar Nugroho" },
-    ];
+    // Mock friends list removed
+    const mockFriends: any[] = [];
 
     return (
         <>

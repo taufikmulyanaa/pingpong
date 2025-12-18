@@ -15,39 +15,37 @@ import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { Colors, SharedStyles, ExtendedColors } from "../../src/lib/constants";
 
 // Mock Data
-const MOCK_TABLE = {
-    id: "1",
-    name: "Meja Garasi Budi",
-    address: "Jl. Merpati No. 12, Jakarta Selatan",
-    image: "https://placehold.co/400x200/4169E1/FFEB00?text=Meja+Garasi",
-    status: "ACTIVE",
-    rating: 4.8,
-    reviews: 12,
-    earnings_total: "Rp 1.450.000",
-    earnings_today: "Rp 150.000",
-    bookings_count: 45,
-    views: 120,
-    facilities: ["Indoor", "AC", "WiFi", "Parkir Motor"],
-    price: "Rp 25.000 / jam",
-};
-
-const MOCK_BOOKINGS = [
-    { id: "b1", user: "Andi P.", time: "14:00 - 15:00", date: "Hari Ini", status: "CONFIRMED", avatar: "https://ui-avatars.com/api/?name=Andi+P" },
-    { id: "b2", user: "Rizky B.", time: "16:00 - 18:00", date: "Hari Ini", status: "PENDING", avatar: "https://ui-avatars.com/api/?name=Rizky+B" },
-    { id: "b3", user: "Siti A.", time: "10:00 - 12:00", date: "Besok", status: "CONFIRMED", avatar: "https://ui-avatars.com/api/?name=Siti+A" },
-];
+// Mock data removed
 
 export default function HostDetailScreen() {
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const [activeTab, setActiveTab] = useState<"BOOKINGS" | "REVIEWS">("BOOKINGS");
-    const [status, setStatus] = useState(MOCK_TABLE.status);
+    const [table, setTable] = useState<any>(null); // Replace mock with state
+    const [status, setStatus] = useState("ACTIVE");
 
     const bgColor = Colors.background;
     const cardColor = Colors.card;
     const textColor = Colors.text;
     const mutedColor = Colors.muted;
     const borderColor = "rgba(0,0,0,0.05)";
+
+    React.useEffect(() => {
+        // Fetch logic would go here
+        setTable(null);
+    }, [id]);
+
+    if (!table) {
+        return (
+            <View style={[styles.container, { backgroundColor: bgColor, justifyContent: 'center', alignItems: 'center' }]}>
+                <MaterialIcons name="error-outline" size={48} color={mutedColor} />
+                <Text style={{ color: textColor, marginTop: 12 }}>Data meja tidak ditemukan</Text>
+                <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
+                    <Text style={{ color: Colors.primary }}>Kembali</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
 
     return (
         <>
@@ -60,7 +58,7 @@ export default function HostDetailScreen() {
                 <ScrollView showsVerticalScrollIndicator={false}>
                     {/* Hero Image Header */}
                     <ImageBackground
-                        source={{ uri: MOCK_TABLE.image }}
+                        source={{ uri: table.image }}
                         style={styles.heroImage}
                     >
                         <View style={styles.overlay} />
@@ -89,11 +87,11 @@ export default function HostDetailScreen() {
                                     {status === "ACTIVE" ? "Online" : "Offline"}
                                 </Text>
                             </View>
-                            <Text style={styles.heroTitle}>{MOCK_TABLE.name}</Text>
-                            <Text style={styles.heroAddress}>{MOCK_TABLE.address}</Text>
+                            <Text style={styles.heroTitle}>{table.name}</Text>
+                            <Text style={styles.heroAddress}>{table.address}</Text>
                             <View style={styles.ratingContainer}>
                                 <MaterialIcons name="star" size={16} color="#F59E0B" />
-                                <Text style={styles.ratingText}>{MOCK_TABLE.rating} ({MOCK_TABLE.reviews} ulasan)</Text>
+                                <Text style={styles.ratingText}>{table.rating} ({table.reviews} ulasan)</Text>
                             </View>
                         </View>
                     </ImageBackground>
@@ -141,11 +139,11 @@ export default function HostDetailScreen() {
                         <View style={styles.statsRow}>
                             <View style={[styles.statsCard, { backgroundColor: Colors.secondary }]}>
                                 <Text style={styles.statsLabel}>Pendapatan Hari Ini</Text>
-                                <Text style={styles.statsValue}>{MOCK_TABLE.earnings_today}</Text>
+                                <Text style={styles.statsValue}>{table.earnings_today}</Text>
                             </View>
                             <View style={[styles.statsCard, { backgroundColor: cardColor, borderWidth: 1, borderColor }]}>
                                 <Text style={[styles.statsLabel, { color: mutedColor }]}>Total Booking</Text>
-                                <Text style={[styles.statsValue, { color: textColor }]}>{MOCK_TABLE.bookings_count}</Text>
+                                <Text style={[styles.statsValue, { color: textColor }]}>{table.bookings_count}</Text>
                             </View>
                         </View>
 
@@ -175,7 +173,7 @@ export default function HostDetailScreen() {
                         {activeTab === "BOOKINGS" ? (
                             <View style={styles.listContainer}>
                                 <Text style={[styles.sectionHeader, { color: textColor }]}>Jadwal Booking</Text>
-                                {MOCK_BOOKINGS.map(booking => (
+                                {[].map((booking: any) => (
                                     <View key={booking.id} style={[styles.bookingItem, { backgroundColor: cardColor, borderColor }]}>
                                         <View style={styles.bookingRow}>
                                             <Image source={{ uri: booking.avatar }} style={styles.userAvatar} />
@@ -207,6 +205,9 @@ export default function HostDetailScreen() {
                                         )}
                                     </View>
                                 ))}
+                                <View style={{ padding: 20, alignItems: "center" }}>
+                                    <Text style={{ color: mutedColor }}>Belum ada booking</Text>
+                                </View>
                             </View>
                         ) : (
                             <View style={styles.listContainer}>

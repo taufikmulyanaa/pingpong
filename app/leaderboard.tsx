@@ -13,6 +13,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, Stack } from "expo-router";
 import { Colors, getLevelTitle, SharedStyles, ExtendedColors } from "../src/lib/constants";
 import { useAuthStore } from "../src/stores/authStore";
+import { supabase } from "@/lib/supabase";
 
 interface Player {
     id: string;
@@ -27,25 +28,13 @@ interface Player {
     city: string;
 }
 
-// Mock players for demo
-const mockPlayers: Player[] = [
-    { id: "1", name: "Budi Santoso", username: "budi_tt", avatar_url: "", rating_mr: 2150, level: 25, wins: 145, losses: 32, total_matches: 177, city: "Jakarta" },
-    { id: "2", name: "Alex Wijaya", username: "alex_ping", avatar_url: "", rating_mr: 2080, level: 22, wins: 128, losses: 41, total_matches: 169, city: "Jakarta" },
-    { id: "3", name: "Dimas Pratama", username: "dimas_pp", avatar_url: "", rating_mr: 2020, level: 20, wins: 112, losses: 38, total_matches: 150, city: "Bandung" },
-    { id: "4", name: "Eko Prasetyo", username: "eko_master", avatar_url: "", rating_mr: 1950, level: 18, wins: 98, losses: 42, total_matches: 140, city: "Jakarta" },
-    { id: "5", name: "Fajar Nugroho", username: "fajar_smash", avatar_url: "", rating_mr: 1890, level: 17, wins: 85, losses: 45, total_matches: 130, city: "Surabaya" },
-    { id: "6", name: "Gilang Ramadhan", username: "gilang_spin", avatar_url: "", rating_mr: 1850, level: 16, wins: 78, losses: 42, total_matches: 120, city: "Jakarta" },
-    { id: "7", name: "Hendra Kusuma", username: "hendra_ace", avatar_url: "", rating_mr: 1800, level: 15, wins: 72, losses: 48, total_matches: 120, city: "Bandung" },
-    { id: "8", name: "Ivan Setiawan", username: "ivan_loop", avatar_url: "", rating_mr: 1750, level: 14, wins: 65, losses: 45, total_matches: 110, city: "Jakarta" },
-    { id: "9", name: "Joko Susilo", username: "joko_block", avatar_url: "", rating_mr: 1700, level: 13, wins: 58, losses: 42, total_matches: 100, city: "Surabaya" },
-    { id: "10", name: "Krisna Adi", username: "krisna_chop", avatar_url: "", rating_mr: 1650, level: 12, wins: 52, losses: 38, total_matches: 90, city: "Jakarta" },
-];
+// Mock data removed
 
 export default function LeaderboardScreen() {
     const router = useRouter();
     const { profile } = useAuthStore();
 
-    const [players, setPlayers] = useState<Player[]>(mockPlayers);
+    const [players, setPlayers] = useState<Player[]>([]);
     const [refreshing, setRefreshing] = useState(false);
     const [filter, setFilter] = useState<"global" | "local">("global");
 
@@ -60,9 +49,46 @@ export default function LeaderboardScreen() {
         ? players.filter(p => p.city === profile.city)
         : players;
 
+    const fetchPlayers = async () => {
+        try {
+            const { data, error } = await supabase
+                .from("profiles")
+                .select("*")
+                .order("rating_mr", { ascending: false })
+                .limit(50);
+
+            if (error) throw error;
+
+            if (data) {
+                // Map database profile to Player interface
+                const mappedPlayers: Player[] = (data as any[]).map(p => ({
+                    id: p.id,
+                    name: p.name || "User",
+                    username: p.username || `user_${p.id.slice(0, 6)}`,
+                    avatar_url: p.avatar_url || "",
+                    rating_mr: p.rating_mr || 0,
+                    level: Math.floor((p.xp || 0) / 100) + 1, // Simple level calc
+                    wins: 0, // Need to join with stats table if exists, or count matches
+                    losses: 0,
+                    total_matches: 0,
+                    city: p.city || "Unknown"
+                }));
+                setPlayers(mappedPlayers);
+            }
+        } catch (err) {
+            console.error("Error fetching leaderboard:", err);
+        } finally {
+            setRefreshing(false);
+        }
+    };
+
+    React.useEffect(() => {
+        fetchPlayers();
+    }, []);
+
     const onRefresh = () => {
         setRefreshing(true);
-        setTimeout(() => setRefreshing(false), 1000);
+        fetchPlayers();
     };
 
     const getWinRate = (wins: number, total: number) => {

@@ -17,55 +17,7 @@ import { Colors, SharedStyles, ExtendedColors } from "@/lib/constants";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/authStore";
 
-// Mock conversations
-const mockConversations = [
-    {
-        id: "1",
-        name: "Budi Santoso",
-        avatar: "https://ui-avatars.com/api/?name=Budi+Santoso&background=random",
-        lastMessage: "Ayo main besok sore di GOR Bulungan!",
-        time: "5 menit lalu",
-        unread: 2,
-        online: true,
-    },
-    {
-        id: "2",
-        name: "Siti Aminah",
-        avatar: "https://ui-avatars.com/api/?name=Siti+Aminah&background=random",
-        lastMessage: "GG! Pertandingan seru tadi 🏓",
-        time: "1 jam lalu",
-        unread: 0,
-        online: false,
-    },
-    {
-        id: "3",
-        name: "Alex Wijaya",
-        avatar: "https://ui-avatars.com/api/?name=Alex+Wijaya&background=random",
-        lastMessage: "Kapan rematch?",
-        time: "2 jam lalu",
-        unread: 1,
-        online: true,
-    },
-    {
-        id: "4",
-        name: "Chen Wei",
-        avatar: "https://ui-avatars.com/api/?name=Chen+Wei&background=random",
-        lastMessage: "Thanks for the game!",
-        time: "Kemarin",
-        unread: 0,
-        online: false,
-    },
-    {
-        id: "5",
-        name: "PTM Sejahtera",
-        avatar: "https://ui-avatars.com/api/?name=PTM+Sejahtera&background=1E3A8A&color=fff",
-        lastMessage: "Turnamen bulanan akan diadakan...",
-        time: "2 hari lalu",
-        unread: 0,
-        online: false,
-        isGroup: true,
-    },
-];
+// Mock data removed
 
 export default function ChatScreen() {
     const router = useRouter();
@@ -74,7 +26,7 @@ export default function ChatScreen() {
 
     const { profile } = useAuthStore();
     const [searchQuery, setSearchQuery] = useState("");
-    const [conversations, setConversations] = useState(mockConversations);
+    const [conversations, setConversations] = useState<any[]>([]);
     const [refreshing, setRefreshing] = useState(false);
 
     const fetchConversations = async () => {
@@ -197,7 +149,7 @@ export default function ChatScreen() {
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.onlineList}
                 >
-                    {mockConversations.filter(c => c.online).map((conv) => (
+                    {conversations.filter(c => c.online).map((conv) => (
                         <TouchableOpacity key={conv.id} style={styles.onlineItem}>
                             <View style={styles.onlineAvatarContainer}>
                                 <Image source={{ uri: conv.avatar }} style={styles.onlineAvatar} />
@@ -208,6 +160,9 @@ export default function ChatScreen() {
                             </Text>
                         </TouchableOpacity>
                     ))}
+                    {conversations.filter(c => c.online).length === 0 && (
+                        <Text style={{ color: mutedColor, fontSize: 12, paddingVertical: 10 }}>Tidak ada teman online</Text>
+                    )}
                 </ScrollView>
             </View>
 

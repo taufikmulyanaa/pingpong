@@ -14,33 +14,12 @@ import { useRouter, Stack } from "expo-router";
 import { Colors, SharedStyles, ExtendedColors } from "../../src/lib/constants";
 
 // Mock data for hosted tables
-const MY_TABLES = [
-    {
-        id: "1",
-        name: "Meja Garasi Budi",
-        address: "Jl. Merpati No. 12, Jakarta Selatan",
-        image: "https://placehold.co/400x200/4169E1/FFEB00?text=Meja+Garasi",
-        status: "ACTIVE", // ACTIVE, INACTIVE, BOOKED
-        rating: 4.8,
-        reviews: 12,
-        earnings: "Rp 150.000",
-    },
-    {
-        id: "2",
-        name: "PTM Sejahtera Table 1",
-        address: "Ruko Grand Wijaya, Blok C",
-        image: "https://placehold.co/400x200/10B981/FFFFFF?text=PTM+Sejahtera",
-        status: "BOOKED",
-        rating: 4.5,
-        reviews: 24,
-        earnings: "Rp 320.000",
-    }
-];
+// Mock data removed
 
 export default function HostListScreen() {
     const router = useRouter();
     const [refreshing, setRefreshing] = useState(false);
-    const [tables, setTables] = useState(MY_TABLES);
+    const [tables, setTables] = useState<any[]>([]);
 
     const onRefresh = React.useCallback(() => {
         setRefreshing(true);
