@@ -6,6 +6,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useColorScheme, Platform } from "react-native";
 import { useAuthStore } from "@/stores/authStore";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 const Colors = {
     primary: "#009688",
@@ -21,6 +22,10 @@ export default function RootLayout() {
     const colorScheme = useColorScheme();
     const isDark = colorScheme === "dark";
     const initialize = useAuthStore((state) => state.initialize);
+
+    // Initialize push notifications (hook handles platform check internally)
+    const pushNotifications = usePushNotifications();
+    const expoPushToken = pushNotifications?.expoPushToken;
 
     const isWeb = Platform.OS === "web";
 

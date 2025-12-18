@@ -281,6 +281,60 @@ export default function ProfilScreen() {
                     ))}
                 </View>
 
+                {/* Legal & About */}
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={[styles.sectionTitle, { color: textColor }]}>Tentang Aplikasi</Text>
+                    </View>
+                    <View style={[styles.menuContainer, { backgroundColor: cardColor, borderColor }]}>
+                        <TouchableOpacity
+                            style={styles.menuItem}
+                            onPress={() => router.push('/legal/privacy' as any)}
+                        >
+                            <View style={styles.menuItemLeft}>
+                                <MaterialIcons name="policy" size={20} color={mutedColor} />
+                                <Text style={[styles.menuItemText, { color: textColor }]}>Kebijakan Privasi</Text>
+                            </View>
+                            <MaterialIcons name="chevron-right" size={20} color={mutedColor} />
+                        </TouchableOpacity>
+
+                        <View style={[styles.menuDivider, { backgroundColor: borderColor }]} />
+
+                        <TouchableOpacity
+                            style={styles.menuItem}
+                            onPress={() => router.push('/legal/terms' as any)}
+                        >
+                            <View style={styles.menuItemLeft}>
+                                <MaterialIcons name="description" size={20} color={mutedColor} />
+                                <Text style={[styles.menuItemText, { color: textColor }]}>Syarat & Ketentuan</Text>
+                            </View>
+                            <MaterialIcons name="chevron-right" size={20} color={mutedColor} />
+                        </TouchableOpacity>
+
+                        <View style={[styles.menuDivider, { backgroundColor: borderColor }]} />
+
+                        <TouchableOpacity
+                            style={styles.menuItem}
+                            onPress={async () => {
+                                // Dynamic import to avoid circular dependencies or context issues if needed
+                                const { scheduleLocalNotification } = require('@/lib/notifications');
+                                await scheduleLocalNotification(
+                                    "Test Notifikasi 🔔",
+                                    "Ini adalah tes notifikasi lokal dari PingpongHub!",
+                                    { seconds: 1 } as any
+                                );
+                                alert("Notifikasi dijadwalkan dalam 1 detik!");
+                            }}
+                        >
+                            <View style={styles.menuItemLeft}>
+                                <MaterialIcons name="notifications-active" size={20} color={Colors.primary} />
+                                <Text style={[styles.menuItemText, { color: textColor }]}>Test Notifikasi</Text>
+                            </View>
+                            <MaterialIcons name="touch-app" size={20} color={Colors.primary} />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
                 {/* Logout Button */}
                 <View style={styles.section}>
                     <TouchableOpacity
@@ -708,5 +762,29 @@ const styles = StyleSheet.create({
         color: "#EF4444",
         fontSize: 14,
         fontWeight: "600",
+    },
+    menuContainer: {
+        borderRadius: 16,
+        borderWidth: 1,
+        overflow: 'hidden',
+    },
+    menuItem: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: 16,
+    },
+    menuItemLeft: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+    },
+    menuItemText: {
+        fontSize: 14,
+        fontWeight: "500",
+    },
+    menuDivider: {
+        height: 1,
+        marginLeft: 48,
     },
 });
