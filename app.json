@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "PingpongHub",
+    "slug": "pingponghub",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "scheme": "pingponghub",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#001064"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pingponghub.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "PingpongHub membutuhkan akses lokasi untuk menemukan lawan dan venue terdekat."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#001064"
+      },
+      "package": "com.pingponghub.app",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "PingpongHub membutuhkan akses lokasi untuk menemukan lawan dan venue terdekat."
+        }
+      ],
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
