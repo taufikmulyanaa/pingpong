@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     View,
     Text,
@@ -12,7 +12,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, Stack } from "expo-router";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import * as Location from "expo-location";
 import { Colors, SharedStyles, ExtendedColors } from "../src/lib/constants";
+import { supabase } from "../src/lib/supabase";
 
 const { width, height } = Dimensions.get("window");
 
@@ -25,11 +28,9 @@ interface Venue {
     longitude: number;
     rating: number;
     price_per_hour: number;
-    image: string;
-    distance: string;
+    images: string[];
+    distance?: string;
 }
-
-// Mock data removed
 
 export default function VenueMapScreen() {
     const router = useRouter();
@@ -37,12 +38,44 @@ export default function VenueMapScreen() {
     const isDark = colorScheme === "dark";
 
     const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
-    const [venues, setVenues] = useState<Venue[]>([]); // Use state instead of mock
+    const [venues, setVenues] = useState<Venue[]>([]);
+    const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+    const mapRef = React.useRef<MapView>(null);
 
-    // Fetch venues (placeholder logic for now)
-    React.useEffect(() => {
-        // In real app, fetch from Supabase
-        setVenues([]);
+    // Get user location
+    useEffect(() => {
+        (async () => {
+            const { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') {
+                console.log('Location permission denied');
+                return;
+            }
+
+            const location = await Location.getCurrentPositionAsync({});
+            setUserLocation({
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+            });
+        })();
+    }, []);
+
+    // Fetch venues from Supabase
+    useEffect(() => {
+        const fetchVenues = async () => {
+            const { data, error } = await supabase
+                .from("venues")
+                .select("*")
+                .eq("is_active", true)
+                .limit(50);
+
+            if (error) {
+                console.error("Error fetching venues:", error);
+            } else if (data) {
+                setVenues(data as Venue[]);
+            }
+        };
+
+        fetchVenues();
     }, []);
 
     const bgColor = Colors.background;
@@ -51,7 +84,15 @@ export default function VenueMapScreen() {
     const mutedColor = Colors.muted;
 
     const formatPrice = (price: number) => {
-        return `Rp ${price.toLocaleString("id-ID")}/jam`;
+        return `Rp ${price?.toLocaleString("id-ID") || 0}/jam`;
+    };
+
+    // Default region (Jakarta)
+    const defaultRegion = {
+        latitude: userLocation?.latitude || -6.2,
+        longitude: userLocation?.longitude || 106.816666,
+        latitudeDelta: 0.15,
+        longitudeDelta: 0.15,
     };
 
     return (
@@ -71,35 +112,33 @@ export default function VenueMapScreen() {
                     <View style={{ width: 40 }} />
                 </View>
 
-                {/* Map Placeholder */}
+                {/* Real Map */}
                 <View style={styles.mapContainer}>
-                    <View style={styles.mapPlaceholder}>
-                        <MaterialIcons name="map" size={48} color={mutedColor} />
-                        <Text style={[styles.mapText, { color: mutedColor }]}>
-                            Peta Interaktif
-                        </Text>
-                        <Text style={[styles.mapHint, { color: mutedColor }]}>
-                            Untuk mengaktifkan, install react-native-maps
-                        </Text>
-                    </View>
-
-                    {/* Venue Markers (simulated) */}
-                    {venues.map((venue, idx) => (
-                        <TouchableOpacity
-                            key={venue.id}
-                            style={[
-                                styles.marker,
-                                {
-                                    top: 80 + (idx * 60),
-                                    left: 40 + (idx * 50) % 200,
-                                    backgroundColor: selectedVenue?.id === venue.id ? Colors.primary : "#EF4444",
-                                },
-                            ]}
-                            onPress={() => setSelectedVenue(venue)}
-                        >
-                            <MaterialIcons name="sports-tennis" size={16} color="#fff" />
-                        </TouchableOpacity>
-                    ))}
+                    <MapView
+                        ref={mapRef}
+                        style={styles.mapView}
+                        provider={PROVIDER_GOOGLE}
+                        initialRegion={defaultRegion}
+                        showsUserLocation={true}
+                        showsMyLocationButton={true}
+                    >
+                        {venues.map((venue) => (
+                            <Marker
+                                key={venue.id}
+                                coordinate={{
+                                    latitude: venue.latitude || -6.2,
+                                    longitude: venue.longitude || 106.816666,
+                                }}
+                                title={venue.name}
+                                description={venue.address}
+                                onPress={() => setSelectedVenue(venue)}
+                            >
+                                <View style={[styles.venueMarker, { backgroundColor: selectedVenue?.id === venue.id ? Colors.primary : "#EF4444" }]}>
+                                    <MaterialIcons name="sports-tennis" size={16} color="#fff" />
+                                </View>
+                            </Marker>
+                        ))}
+                    </MapView>
                 </View>
 
                 {/* Venue List */}
@@ -131,7 +170,7 @@ export default function VenueMapScreen() {
                                         router.push({ pathname: "/venue/[id]", params: { id: venue.id } });
                                     }}
                                 >
-                                    <Image source={{ uri: venue.image }} style={styles.venueImage} />
+                                    <Image source={{ uri: venue.images?.[0] || "https://via.placeholder.com/200" }} style={styles.venueImage} />
                                     <View style={styles.venueInfo}>
                                         <Text style={[styles.venueName, { color: textColor }]} numberOfLines={1}>
                                             {venue.name}
@@ -142,7 +181,7 @@ export default function VenueMapScreen() {
                                                 {venue.rating}
                                             </Text>
                                             <Text style={[styles.distanceText, { color: mutedColor }]}>
-                                                • {venue.distance}
+                                                • {venue.distance || "-"}
                                             </Text>
                                         </View>
                                         <Text style={[styles.venuePrice, { color: Colors.primary }]}>
@@ -162,7 +201,7 @@ export default function VenueMapScreen() {
                 {/* Selected Venue Detail */}
                 {selectedVenue && (
                     <View style={[styles.selectedCard, { backgroundColor: cardColor }]}>
-                        <Image source={{ uri: selectedVenue.image }} style={styles.selectedImage} />
+                        <Image source={{ uri: selectedVenue.images?.[0] || "https://via.placeholder.com/60" }} style={styles.selectedImage} />
                         <View style={styles.selectedInfo}>
                             <Text style={[styles.selectedName, { color: textColor }]}>
                                 {selectedVenue.name}
@@ -225,6 +264,25 @@ const styles = StyleSheet.create({
     mapContainer: {
         flex: 1,
         position: "relative",
+    },
+    mapView: {
+        flex: 1,
+        width: "100%",
+        height: "100%",
+    },
+    venueMarker: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        justifyContent: "center",
+        alignItems: "center",
+        borderWidth: 2,
+        borderColor: "#fff",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5,
     },
     mapPlaceholder: {
         flex: 1,

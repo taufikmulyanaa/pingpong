@@ -7,101 +7,95 @@ import {
     Image,
     StyleSheet,
     useColorScheme,
-    Animated,
-    Easing,
     RefreshControl,
+    Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import Slider from "@react-native-community/slider";
+import MapView, { Marker, Circle, PROVIDER_GOOGLE } from "react-native-maps";
+import * as Location from "expo-location";
 import { Colors, GripStyles, PlayStyles, SharedStyles, ExtendedColors, BorderRadius } from "@/lib/constants";
 import { supabase } from "@/lib/supabase";
 import { Profile } from "@/types/database";
 import { useAuthStore } from "@/stores/authStore";
 
-// Mock data removed
+// Real Map View component
+const RealMapView = ({
+    userLocation,
+    players,
+    distance,
+    onPlayerPress
+}: {
+    userLocation: { latitude: number; longitude: number } | null;
+    players: Partial<Profile>[];
+    distance: number;
+    onPlayerPress: (playerId: string) => void;
+}) => {
+    const mapRef = React.useRef<MapView>(null);
 
-// Radar animation component
-const RadarView = () => {
-    const spinValue = React.useRef(new Animated.Value(0)).current;
-    const pulseValue = React.useRef(new Animated.Value(0)).current;
-
-    useEffect(() => {
-        Animated.loop(
-            Animated.timing(spinValue, {
-                toValue: 1,
-                duration: 4000,
-                easing: Easing.linear,
-                useNativeDriver: true,
-            })
-        ).start();
-
-        Animated.loop(
-            Animated.sequence([
-                Animated.timing(pulseValue, {
-                    toValue: 1,
-                    duration: 2000,
-                    easing: Easing.out(Easing.ease),
-                    useNativeDriver: true,
-                }),
-                Animated.timing(pulseValue, {
-                    toValue: 0,
-                    duration: 0,
-                    useNativeDriver: true,
-                }),
-            ])
-        ).start();
-    }, []);
-
-    const spin = spinValue.interpolate({
-        inputRange: [0, 1],
-        outputRange: ["0deg", "360deg"],
-    });
+    // Default to Jakarta if no location
+    const defaultRegion = {
+        latitude: userLocation?.latitude || -6.2,
+        longitude: userLocation?.longitude || 106.816666,
+        latitudeDelta: 0.1,
+        longitudeDelta: 0.1,
+    };
 
     return (
         <View style={styles.radarContainer}>
-            {/* Pulse rings */}
-            {[0.3, 0.6, 0.9].map((scale, index) => (
-                <Animated.View
-                    key={index}
-                    style={[
-                        styles.radarRing,
-                        {
-                            width: 48 + 80 * (index + 1),
-                            height: 48 + 80 * (index + 1),
-                            opacity: pulseValue.interpolate({
-                                inputRange: [0, 0.5, 1],
-                                outputRange: [0.3, 0.1, 0],
-                            }),
-                            transform: [
-                                {
-                                    scale: pulseValue.interpolate({
-                                        inputRange: [0, 1],
-                                        outputRange: [0.8, 1.2],
-                                    }),
-                                },
-                            ],
-                        },
-                    ]}
-                />
-            ))}
+            <MapView
+                ref={mapRef}
+                style={styles.mapView}
+                provider={PROVIDER_GOOGLE}
+                initialRegion={defaultRegion}
+                showsUserLocation={true}
+                showsMyLocationButton={true}
+            >
+                {/* Distance radius circle */}
+                {userLocation && (
+                    <Circle
+                        center={userLocation}
+                        radius={distance * 1000} // km to meters
+                        strokeColor="rgba(65, 105, 225, 0.5)"
+                        fillColor="rgba(65, 105, 225, 0.1)"
+                        strokeWidth={2}
+                    />
+                )}
 
-            {/* Center avatar */}
-            <View style={styles.radarCenter}>
-                <Image
-                    source={{ uri: "https://ui-avatars.com/api/?name=Me&background=009688&color=fff" }}
-                    style={styles.radarAvatar}
-                />
-            </View>
+                {/* Player markers */}
+                {players.map((player) => {
+                    // Use player's lat/lng if available, else mock position
+                    const playerLat = player.latitude || (userLocation?.latitude || -6.2) + (Math.random() - 0.5) * 0.05;
+                    const playerLng = player.longitude || (userLocation?.longitude || 106.816666) + (Math.random() - 0.5) * 0.05;
 
-            {/* Scanning text */}
-            <View style={styles.scanningBadge}>
-                <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                    return (
+                        <Marker
+                            key={player.id}
+                            coordinate={{
+                                latitude: playerLat,
+                                longitude: playerLng,
+                            }}
+                            title={player.name || "Player"}
+                            description={`MR ${player.rating_mr}`}
+                            onPress={() => onPlayerPress(player.id!)}
+                        >
+                            <View style={[styles.playerMarker, { backgroundColor: player.is_online ? "#10B981" : Colors.primary }]}>
+                                <MaterialIcons name="person" size={16} color="#fff" />
+                            </View>
+                        </Marker>
+                    );
+                })}
+            </MapView>
+
+            {/* Scanning indicator overlay */}
+            {players.length === 0 && (
+                <View style={styles.scanningBadge}>
                     <MaterialIcons name="sync" size={14} color={Colors.primary} />
-                </Animated.View>
-                <Text style={styles.scanningText}>Memindai area sekitar...</Text>
-            </View>
+                    <Text style={styles.scanningText}>Memindai area sekitar...</Text>
+                </View>
+            )}
         </View>
     );
 };
@@ -206,6 +200,24 @@ export default function CariScreen() {
     const [players, setPlayers] = useState<Partial<Profile>[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+
+    // Get user location
+    useEffect(() => {
+        (async () => {
+            const { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') {
+                console.log('Location permission denied');
+                return;
+            }
+
+            const location = await Location.getCurrentPositionAsync({});
+            setUserLocation({
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+            });
+        })();
+    }, []);
 
     const fetchPlayers = async () => {
         if (!profile?.id) return;
@@ -317,9 +329,14 @@ export default function CariScreen() {
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
                 }
             >
-                {/* Radar Section */}
+                {/* Map Section */}
                 <View style={[styles.radarSection, { backgroundColor: cardColor }]}>
-                    <RadarView />
+                    <RealMapView
+                        userLocation={userLocation}
+                        players={players}
+                        distance={distance}
+                        onPlayerPress={handleProfile}
+                    />
 
                     {/* Filters */}
                     <View style={styles.filters}>
@@ -494,7 +511,7 @@ const styles = StyleSheet.create({
         padding: 16,
     },
     radarContainer: {
-        height: 192,
+        height: 220,
         justifyContent: "center",
         alignItems: "center",
         position: "relative",
@@ -502,6 +519,25 @@ const styles = StyleSheet.create({
         backgroundColor: "rgba(0,16,100,0.05)",
         borderRadius: 16,
         overflow: "hidden",
+    },
+    mapView: {
+        width: "100%",
+        height: "100%",
+        borderRadius: 16,
+    },
+    playerMarker: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        justifyContent: "center",
+        alignItems: "center",
+        borderWidth: 2,
+        borderColor: "#fff",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5,
     },
     radarRing: {
         position: "absolute",

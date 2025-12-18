@@ -16,35 +16,31 @@ import { useAuthStore } from "@/stores/authStore";
 import { Colors, GripStyles, PlayStyles, getLevelTitle, SharedStyles, ExtendedColors } from "@/lib/constants";
 import EditProfileModal from "@/components/EditProfileModal";
 
-// Mock badges
-const badges = [
-    { id: "1", name: "Turnamen Winner", icon: "workspace-premium", color: "#F59E0B", bgColor: "#FEF3C7", unlocked: true },
-    { id: "2", name: "Fast Hand", icon: "bolt", color: "#6366F1", bgColor: "#E0E7FF", unlocked: true },
-    { id: "3", name: "Community Fav", icon: "favorite", color: "#EC4899", bgColor: "#FCE7F3", unlocked: true },
-    { id: "4", name: "Locked", icon: "lock", color: "#9CA3AF", bgColor: "#F3F4F6", unlocked: false },
-];
-
-// Mock match history
-const matchHistory = [
-    { id: "1", opponent: "Andi Lau", type: "Friendly Match", time: "2 Hari lalu", score: "3 - 1", mr: "+12", won: true },
-    { id: "2", opponent: "Chen Wei", type: "Turnamen Lokal", time: "5 Hari lalu", score: "2 - 3", mr: "-8", won: false },
-    { id: "3", opponent: "Rizky P.", type: "Ranked Match", time: "1 Minggu lalu", score: "3 - 0", mr: "+15", won: true },
-];
+import { formatDistanceToNow } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
+import { usePlayerStats, useMatchHistory } from "@/hooks/usePlayerStats";
 
 export default function ProfilScreen() {
     const router = useRouter();
     const colorScheme = useColorScheme();
     const isDark = colorScheme === "dark";
-    const { profile, signOut, fetchProfile, isLoading } = useAuthStore();
+    const { profile, signOut, fetchProfile } = useAuthStore();
+
+    // Fetch real stats and history
+    const { badges, stats, refresh: refreshStats } = usePlayerStats(profile?.id || "");
+    const { matches: historyMatches, loading: historyLoading } = useMatchHistory(profile?.id || "");
 
     const [refreshing, setRefreshing] = React.useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
 
     const onRefresh = React.useCallback(async () => {
         setRefreshing(true);
-        await fetchProfile();
+        await Promise.all([
+            fetchProfile(),
+            refreshStats()
+        ]);
         setRefreshing(false);
-    }, []);
+    }, [fetchProfile, refreshStats]);
 
     const bgColor = Colors.background;
     const cardColor = Colors.surface;
@@ -61,21 +57,15 @@ export default function ProfilScreen() {
         try {
             console.log("Signing out...");
             await signOut();
-            // Use push for now to ensure navigation happens
-            // In Expo Router with groups, sometimes explicit path is safer or just /login
             router.replace("/(auth)/login");
         } catch (error) {
             console.error("Logout error:", error);
-            // Fallback
             router.replace("/login");
         }
     };
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={["top"]}>
-            {/* Header */}
-
-
             <ScrollView
                 style={styles.scrollView}
                 contentContainerStyle={styles.content}
@@ -121,7 +111,7 @@ export default function ProfilScreen() {
                     <View style={styles.joinDate}>
                         <MaterialIcons name="calendar-today" size={14} color="rgba(255,255,255,0.7)" />
                         <Text style={[styles.joinDateText, { color: "rgba(255,255,255,0.7)" }]}>
-                            Bergabung Jan 2023
+                            Bergabung {profile?.created_at ? new Date(profile.created_at).toLocaleDateString("id-ID", { month: 'short', year: 'numeric' }) : "-"}
                         </Text>
                     </View>
 
@@ -161,7 +151,7 @@ export default function ProfilScreen() {
                         <Text style={[styles.statValue, { color: textColor }]}>{profile?.rating_mr || 1000}</Text>
                         <View style={styles.statChange}>
                             <MaterialIcons name="arrow-upward" size={12} color="#10B981" />
-                            <Text style={styles.statChangeText}>+12</Text>
+                            <Text style={styles.statChangeText}>-</Text>
                         </View>
                     </View>
 
@@ -173,8 +163,8 @@ export default function ProfilScreen() {
 
                     <View style={[styles.statCard, { backgroundColor: cardColor, borderColor }]}>
                         <Text style={[styles.statLabel, { color: mutedColor }]}>Rank</Text>
-                        <Text style={[styles.statValue, { color: Colors.secondary }]}>#42</Text>
-                        <Text style={[styles.statSubLabel, { color: mutedColor }]}>Jakarta Sel.</Text>
+                        <Text style={[styles.statValue, { color: Colors.secondary }]}>-</Text>
+                        <Text style={[styles.statSubLabel, { color: mutedColor }]}>-</Text>
                     </View>
                 </View>
 
@@ -214,7 +204,7 @@ export default function ProfilScreen() {
                             <Text style={[styles.streakLabel, { color: mutedColor }]}>Best Win</Text>
                             <View style={styles.streakValue}>
                                 <MaterialIcons name="emoji-events" size={20} color="#F59E0B" />
-                                <Text style={[styles.streakNumber, { color: textColor }]}>vs Rank #12</Text>
+                                <Text style={[styles.streakNumber, { color: textColor }]}>-</Text>
                             </View>
                         </View>
                     </View>
@@ -223,62 +213,93 @@ export default function ProfilScreen() {
                 {/* Badge Collection */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
-                        <Text style={[styles.sectionTitle, { color: textColor }]}>Koleksi Lencana</Text>
+                        <Text style={[styles.sectionTitle, { color: textColor }]}>Koleksi Lencana ({badges.length})</Text>
                         <TouchableOpacity>
                             <Text style={styles.seeAll}>Lihat Semua</Text>
                         </TouchableOpacity>
                     </View>
 
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.badgeList}
-                    >
-                        {badges.map((badge) => (
-                            <View
-                                key={badge.id}
-                                style={[styles.badgeItem, { opacity: badge.unlocked ? 1 : 0.5 }]}
-                            >
-                                <View style={[styles.badgeIcon, { backgroundColor: badge.bgColor, borderColor: badge.color }]}>
-                                    <MaterialIcons name={badge.icon as any} size={28} color={badge.color} />
-                                </View>
-                                <Text style={[styles.badgeName, { color: badge.unlocked ? mutedColor : "#9CA3AF" }]}>
-                                    {badge.name}
-                                </Text>
-                            </View>
-                        ))}
-                    </ScrollView>
+                    {badges.length > 0 ? (
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.badgeList}
+                        >
+                            {badges.map((badge) => {
+                                // Define badge styles based on category/code if not in DB
+                                const getBadgeStyle = (code: string, category: string) => {
+                                    switch (category) {
+                                        case 'COMPETITION': return { icon: 'emoji-events', color: '#F59E0B', bgColor: '#FEF3C7' };
+                                        case 'PERFORMANCE': return { icon: 'bolt', color: '#6366F1', bgColor: '#E0E7FF' };
+                                        case 'SOCIAL': return { icon: 'favorite', color: '#EC4899', bgColor: '#FCE7F3' };
+                                        case 'SPECIAL': return { icon: 'star', color: '#8B5CF6', bgColor: '#EDE9FE' };
+                                        default: return { icon: 'workspace-premium', color: '#9CA3AF', bgColor: '#F3F4F6' };
+                                    }
+                                };
+
+                                const style = getBadgeStyle(badge.code, badge.category);
+
+                                return (
+                                    <View
+                                        key={badge.id}
+                                        style={[styles.badgeItem, { opacity: 1 }]}
+                                    >
+                                        <View style={[styles.badgeIcon, { backgroundColor: style.bgColor, borderColor: style.color }]}>
+                                            <MaterialIcons name={style.icon as any} size={28} color={style.color} />
+                                        </View>
+                                        <Text style={[styles.badgeName, { color: mutedColor }]}>
+                                            {badge.name}
+                                        </Text>
+                                    </View>
+                                );
+                            })}
+                        </ScrollView>
+                    ) : (
+                        <Text style={{ color: mutedColor, fontStyle: 'italic' }}>Belum ada lencana yang didapatkan.</Text>
+                    )}
                 </View>
 
                 {/* Match History */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
                         <Text style={[styles.sectionTitle, { color: textColor }]}>Riwayat Pertandingan</Text>
-                        <TouchableOpacity>
+                        <TouchableOpacity onPress={() => router.push('/match/history' as any)}>
                             <Text style={styles.seeAll}>Selengkapnya</Text>
                         </TouchableOpacity>
                     </View>
 
-                    {matchHistory.map((match) => (
-                        <View key={match.id} style={[styles.matchCard, { backgroundColor: cardColor, borderColor }]}>
-                            <View style={[styles.matchIndicator, { backgroundColor: match.won ? "#10B981" : "#EF4444" }]} />
-                            <View style={styles.matchContent}>
-                                <Text style={[styles.matchType, { color: mutedColor }]}>{match.type} • {match.time}</Text>
-                                <View style={styles.matchOpponent}>
-                                    <Text style={[styles.matchOpponentName, { color: textColor }]}>vs {match.opponent}</Text>
-                                    <View style={[styles.matchResult, { backgroundColor: match.won ? "#D1FAE5" : "#FEE2E2" }]}>
-                                        <Text style={[styles.matchResultText, { color: match.won ? "#059669" : "#DC2626" }]}>
-                                            {match.won ? "W" : "L"}
-                                        </Text>
+                    {historyLoading ? (
+                        <Text style={{ color: mutedColor }}>Memuat...</Text>
+                    ) : historyMatches.length > 0 ? (
+                        historyMatches.map((entry) => (
+                            <View key={entry.match.id} style={[styles.matchCard, { backgroundColor: cardColor, borderColor }]}>
+                                <View style={[styles.matchIndicator, { backgroundColor: entry.isWin ? "#10B981" : "#EF4444" }]} />
+                                <View style={styles.matchContent}>
+                                    <Text style={[styles.matchType, { color: mutedColor }]}>
+                                        {entry.match.type === 'RANKED' ? 'Ranked Match' : 'Friendly Match'} • {formatDistanceToNow(new Date(entry.match.completed_at), { addSuffix: true, locale: idLocale })}
+                                    </Text>
+                                    <View style={styles.matchOpponent}>
+                                        <Text style={[styles.matchOpponentName, { color: textColor }]}>vs {entry.opponent?.name || 'Unknown'}</Text>
+                                        <View style={[styles.matchResult, { backgroundColor: entry.isWin ? "#D1FAE5" : "#FEE2E2" }]}>
+                                            <Text style={[styles.matchResultText, { color: entry.isWin ? "#059669" : "#DC2626" }]}>
+                                                {entry.isWin ? "W" : "L"}
+                                            </Text>
+                                        </View>
                                     </View>
                                 </View>
+                                <View style={styles.matchScore}>
+                                    <Text style={[styles.matchScoreText, { color: textColor }]}>
+                                        {entry.match.score_player1} - {entry.match.score_player2}
+                                    </Text>
+                                    <Text style={[styles.matchMr, { color: entry.isWin ? "#10B981" : "#EF4444" }]}>
+                                        {entry.ratingChange > 0 ? '+' : ''}{entry.ratingChange} MR
+                                    </Text>
+                                </View>
                             </View>
-                            <View style={styles.matchScore}>
-                                <Text style={[styles.matchScoreText, { color: textColor }]}>{match.score}</Text>
-                                <Text style={[styles.matchMr, { color: match.won ? "#10B981" : "#EF4444" }]}>{match.mr} MR</Text>
-                            </View>
-                        </View>
-                    ))}
+                        ))
+                    ) : (
+                        <Text style={{ color: mutedColor, fontStyle: "italic" }}>Belum ada riwayat pertandingan.</Text>
+                    )}
                 </View>
 
                 {/* Legal & About */}
