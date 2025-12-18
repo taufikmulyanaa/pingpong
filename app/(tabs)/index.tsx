@@ -246,82 +246,33 @@ export default function HomeScreen() {
                         </TouchableOpacity>
                     </View>
 
-                    <View style={styles.challengeIncomingHighlight}>
-                        <Image
-                            source={{ uri: "https://ui-avatars.com/api/?name=Budi+Santoso&background=1a237e&color=fff" }}
-                            style={styles.challengeAvatar}
-                        />
-                        <View style={styles.challengeInfo}>
-                            <Text style={[styles.challengeName, { color: textColor }]}>Budi Santoso</Text>
-                            <View style={styles.challengeMeta}>
-                                <Text style={[styles.challengeMr, { color: Colors.primary }]}>MR 1250</Text>
-                                <Text style={[styles.challengeType, { color: mutedColor }]}>• Ranked Match</Text>
-                            </View>
-                            <Text style={[styles.challengeTime, { color: mutedColor }]}>5 menit lalu</Text>
-                        </View>
-                        <View style={styles.challengeActions}>
-                            <TouchableOpacity style={styles.acceptBtn}>
-                                <MaterialIcons name="check" size={20} color="#fff" />
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.declineBtn}>
-                                <MaterialIcons name="close" size={20} color="#EF4444" />
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-
-                    <View style={[styles.challengeIncoming, { backgroundColor: cardColor }]}>
-                        <Image
-                            source={{ uri: "https://ui-avatars.com/api/?name=Dewi+Lestari&background=ec4899&color=fff" }}
-                            style={styles.challengeAvatar}
-                        />
-                        <View style={styles.challengeInfo}>
-                            <Text style={[styles.challengeName, { color: textColor }]}>Dewi Lestari</Text>
-                            <View style={styles.challengeMeta}>
-                                <Text style={[styles.challengeMr, { color: Colors.primary }]}>MR 980</Text>
-                                <Text style={[styles.challengeType, { color: mutedColor }]}>• Friendly Match</Text>
-                            </View>
-                            <Text style={[styles.challengeTime, { color: mutedColor }]}>12 menit lalu</Text>
-                        </View>
-                        <View style={styles.challengeActions}>
-                            <TouchableOpacity style={styles.acceptBtn}>
-                                <MaterialIcons name="check" size={20} color="#fff" />
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.declineBtn}>
-                                <MaterialIcons name="close" size={20} color="#EF4444" />
-                            </TouchableOpacity>
-                        </View>
+                    <View style={[styles.emptyState, { backgroundColor: cardColor }]}>
+                        <MaterialIcons name="mail-outline" size={40} color={mutedColor} />
+                        <Text style={[styles.emptyStateText, { color: mutedColor }]}>Belum ada tantangan masuk</Text>
                     </View>
                 </View>
 
                 {/* Streak & Head-to-Head */}
                 <View style={styles.section}>
                     <View style={styles.streakH2HContainer}>
-                        {/* Streak Info */}
+                        {/* Streak Info - use profile data */}
                         <View style={styles.streakCardHighlight}>
                             <View style={styles.streakHeader}>
                                 <MaterialIcons name="local-fire-department" size={24} color="#F59E0B" />
                                 <Text style={[styles.streakTitle, { color: textColor }]}>Streak</Text>
                             </View>
-                            <Text style={[styles.streakValue, { color: "#F59E0B" }]}>3</Text>
-                            <Text style={[styles.streakLabel, { color: "#22C55E" }]}>WIN STREAK</Text>
+                            <Text style={[styles.streakValue, { color: "#F59E0B" }]}>{profile?.current_streak || 0}</Text>
+                            <Text style={[styles.streakLabel, { color: profile?.current_streak ? "#22C55E" : mutedColor }]}>
+                                {profile?.current_streak ? "WIN STREAK" : "NO STREAK"}
+                            </Text>
                         </View>
 
-                        {/* Head-to-Head */}
+                        {/* Head-to-Head - empty state */}
                         <View style={[styles.h2hCard, { backgroundColor: cardColor }]}>
                             <Text style={[styles.h2hTitle, { color: textColor }]}>vs Lawan Terakhir</Text>
-                            <View style={styles.h2hContent}>
-                                <Image
-                                    source={{ uri: "https://ui-avatars.com/api/?name=Rizky&background=random" }}
-                                    style={styles.h2hAvatar}
-                                />
-                                <View style={styles.h2hStats}>
-                                    <Text style={[styles.h2hName, { color: textColor }]}>Rizky Billar</Text>
-                                    <Text style={styles.h2hRecord}>
-                                        <Text style={{ color: "#22C55E" }}>4</Text>
-                                        <Text style={{ color: mutedColor }}> - </Text>
-                                        <Text style={{ color: "#EF4444" }}>2</Text>
-                                    </Text>
-                                </View>
+                            <View style={[styles.emptyStateSmall, { paddingVertical: 12 }]}>
+                                <MaterialIcons name="sports-tennis" size={24} color={mutedColor} />
+                                <Text style={[styles.emptyStateTextSmall, { color: mutedColor }]}>Belum ada match</Text>
                             </View>
                         </View>
                     </View>
@@ -341,17 +292,17 @@ export default function HomeScreen() {
 
                     <View style={[styles.rankCard, { backgroundColor: cardColor }]}>
                         <View style={styles.rankPosition}>
-                            <Text style={styles.rankNumber}>#12</Text>
-                            <Text style={[styles.rankCity, { color: mutedColor }]}>Jakarta Selatan</Text>
+                            <Text style={styles.rankNumber}>#{"-"}</Text>
+                            <Text style={[styles.rankCity, { color: mutedColor }]}>{profile?.city || "Belum diatur"}</Text>
                         </View>
                         <View style={styles.rankDivider} />
                         <View style={styles.rankStats}>
                             <View style={styles.rankStatItem}>
-                                <Text style={[styles.rankStatValue, { color: textColor }]}>1,000</Text>
+                                <Text style={[styles.rankStatValue, { color: textColor }]}>{profile?.rating_mr?.toLocaleString() || "1,000"}</Text>
                                 <Text style={[styles.rankStatLabel, { color: mutedColor }]}>MR</Text>
                             </View>
                             <View style={styles.rankStatItem}>
-                                <Text style={[styles.rankStatValue, { color: "#22C55E" }]}>↑3</Text>
+                                <Text style={[styles.rankStatValue, { color: "#22C55E" }]}>-</Text>
                                 <Text style={[styles.rankStatLabel, { color: mutedColor }]}>Minggu ini</Text>
                             </View>
                         </View>
@@ -370,33 +321,9 @@ export default function HomeScreen() {
                         </TouchableOpacity>
                     </View>
 
-                    <View style={styles.upcomingCardHighlight}>
-                        <View style={styles.upcomingTime}>
-                            <Text style={styles.upcomingDay}>Hari Ini</Text>
-                            <Text style={styles.upcomingHour}>19:00</Text>
-                        </View>
-                        <View style={styles.upcomingDivider} />
-                        <View style={styles.upcomingInfo}>
-                            <View style={styles.upcomingPlayers}>
-                                <Image
-                                    source={{ uri: "https://ui-avatars.com/api/?name=You&background=1a237e&color=fff" }}
-                                    style={styles.upcomingAvatar}
-                                />
-                                <Text style={[styles.upcomingVs, { color: mutedColor }]}>vs</Text>
-                                <Image
-                                    source={{ uri: "https://ui-avatars.com/api/?name=Andi&background=random" }}
-                                    style={styles.upcomingAvatar}
-                                />
-                            </View>
-                            <Text style={[styles.upcomingOpponent, { color: textColor }]}>Andi Pratama</Text>
-                            <View style={styles.venueLocationRow}>
-                                <MaterialIcons name="place" size={14} color={mutedColor} />
-                                <Text style={[styles.upcomingVenue, { color: mutedColor }]}>GOR Velodrome</Text>
-                            </View>
-                        </View>
-                        <TouchableOpacity style={styles.upcomingBtn}>
-                            <MaterialIcons name="chevron-right" size={24} color={Colors.primary} />
-                        </TouchableOpacity>
+                    <View style={[styles.emptyState, { backgroundColor: cardColor }]}>
+                        <MaterialIcons name="event-busy" size={40} color={mutedColor} />
+                        <Text style={[styles.emptyStateText, { color: mutedColor }]}>Belum ada jadwal match</Text>
                     </View>
                 </View>
 
@@ -412,35 +339,10 @@ export default function HomeScreen() {
                         </TouchableOpacity>
                     </View>
 
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.venueScroll}>
-                        <TouchableOpacity style={[styles.venueCard, { backgroundColor: cardColor }]}>
-                            <View style={styles.venueImagePlaceholder}>
-                                <MaterialIcons name="sports-tennis" size={32} color={Colors.primary} />
-                            </View>
-                            <View style={styles.venueInfo}>
-                                <Text style={[styles.venueName, { color: textColor }]}>GOR Velodrome</Text>
-                                <Text style={[styles.venueDistance, { color: mutedColor }]}>1.2 km</Text>
-                                <View style={styles.venueRating}>
-                                    <MaterialIcons name="star" size={14} color="#F59E0B" />
-                                    <Text style={[styles.venueRatingText, { color: textColor }]}>4.8</Text>
-                                </View>
-                            </View>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={[styles.venueCard, { backgroundColor: cardColor }]}>
-                            <View style={styles.venueImagePlaceholder}>
-                                <MaterialIcons name="sports-tennis" size={32} color="#8B5CF6" />
-                            </View>
-                            <View style={styles.venueInfo}>
-                                <Text style={[styles.venueName, { color: textColor }]}>PTM Merdeka</Text>
-                                <Text style={[styles.venueDistance, { color: mutedColor }]}>2.5 km</Text>
-                                <View style={styles.venueRating}>
-                                    <MaterialIcons name="star" size={14} color="#F59E0B" />
-                                    <Text style={[styles.venueRatingText, { color: textColor }]}>4.5</Text>
-                                </View>
-                            </View>
-                        </TouchableOpacity>
-                    </ScrollView>
+                    <View style={[styles.emptyState, { backgroundColor: cardColor }]}>
+                        <MaterialIcons name="location-off" size={40} color={mutedColor} />
+                        <Text style={[styles.emptyStateText, { color: mutedColor }]}>Aktifkan lokasi untuk melihat venue terdekat</Text>
+                    </View>
                 </View>
 
                 {/* Chat Terbaru */}
@@ -450,64 +352,18 @@ export default function HomeScreen() {
                             <MaterialIcons name="chat" size={20} color="#8B5CF6" />
                             <Text style={[styles.sectionTitle, { color: textColor }]}>Chat Terbaru</Text>
                         </View>
-                        <TouchableOpacity>
+                        <TouchableOpacity onPress={() => router.push("/chat")}>
                             <Text style={styles.seeAll}>Lihat Semua</Text>
                         </TouchableOpacity>
                     </View>
 
-                    <TouchableOpacity style={[styles.chatItem, { backgroundColor: cardColor }]}>
-                        <View style={styles.chatAvatarContainer}>
-                            <Image
-                                source={{ uri: "https://ui-avatars.com/api/?name=Budi&background=random" }}
-                                style={styles.chatAvatar}
-                            />
-                            <View style={styles.chatUnreadBadge} />
-                        </View>
-                        <View style={styles.chatContent}>
-                            <View style={styles.chatHeader}>
-                                <Text style={[styles.chatName, { color: textColor }]}>Budi Santoso</Text>
-                                <Text style={[styles.chatTime, { color: mutedColor }]}>2m</Text>
-                            </View>
-                            <Text style={[styles.chatPreview, { color: mutedColor }]} numberOfLines={1}>
-                                Siap main besok jam 7 malam?
-                            </Text>
-                        </View>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={[styles.chatItem, { backgroundColor: cardColor }]}>
-                        <Image
-                            source={{ uri: "https://ui-avatars.com/api/?name=Andi&background=random" }}
-                            style={styles.chatAvatar}
-                        />
-                        <View style={styles.chatContent}>
-                            <View style={styles.chatHeader}>
-                                <Text style={[styles.chatName, { color: textColor }]}>Andi Pratama</Text>
-                                <Text style={[styles.chatTime, { color: mutedColor }]}>1h</Text>
-                            </View>
-                            <Text style={[styles.chatPreview, { color: mutedColor }]} numberOfLines={1}>
-                                GG bro, next time kita rematch ya!
-                            </Text>
-                        </View>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Live Tournament Banner */}
-                <View style={styles.section}>
-                    <View style={styles.liveBanner}>
-                        <View style={styles.liveBannerContent}>
-                            <View style={styles.liveTag}>
-                                <Text style={styles.liveTagText}>LIVE</Text>
-                            </View>
-                            <Text style={styles.liveBannerTitle}>Turnamen Jakarta Open 2024</Text>
-                            <Text style={styles.liveBannerSubtitle}>Final sedang berlangsung!</Text>
-                        </View>
-                        <TouchableOpacity style={styles.watchButton}>
-                            <Text style={styles.watchButtonText}>Tonton</Text>
-                        </TouchableOpacity>
+                    <View style={[styles.emptyState, { backgroundColor: cardColor }]}>
+                        <MaterialIcons name="chat-bubble-outline" size={40} color={mutedColor} />
+                        <Text style={[styles.emptyStateText, { color: mutedColor }]}>Belum ada pesan</Text>
                     </View>
                 </View>
 
-                {/* Activity Feed */}
+                {/* Activity Feed - Empty State */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
                         <Text style={[styles.sectionTitle, { color: textColor }]}>Aktivitas Teman</Text>
@@ -516,40 +372,9 @@ export default function HomeScreen() {
                         </TouchableOpacity>
                     </View>
 
-                    {/* Activity Items */}
-                    <View style={[styles.activityCard, { backgroundColor: cardColor }]}>
-                        <Image
-                            source={{ uri: "https://ui-avatars.com/api/?name=User&background=random" }}
-                            style={styles.activityAvatar}
-                        />
-                        <View style={styles.activityContent}>
-                            <Text style={[styles.activityText, { color: textColor }]}>
-                                <Text style={styles.activityName}>Andi Pratama</Text> baru saja memenangkan pertandingan melawan{" "}
-                                <Text style={styles.activityName}>Rizky Billar</Text>.
-                            </Text>
-                            <View style={styles.activityMeta}>
-                                <Text style={[styles.activityScore, { color: mutedColor }]}>Score: 3 - 1</Text>
-                                <Text style={styles.activityMr}>+25 MR</Text>
-                            </View>
-                            <Text style={[styles.activityTime, { color: mutedColor }]}>15 menit yang lalu</Text>
-                        </View>
-                    </View>
-
-                    <View style={[styles.activityCard, { backgroundColor: cardColor }]}>
-                        <Image
-                            source={{ uri: "https://ui-avatars.com/api/?name=User&background=random" }}
-                            style={styles.activityAvatar}
-                        />
-                        <View style={styles.activityContent}>
-                            <Text style={[styles.activityText, { color: textColor }]}>
-                                <Text style={styles.activityName}>Siti Aminah</Text> check-in di{" "}
-                                <Text style={[styles.activityName, { color: Colors.primary }]}>GOR Velodrome</Text>.
-                            </Text>
-                            <Text style={[styles.activityTime, { color: mutedColor }]}>45 menit yang lalu</Text>
-                        </View>
-                        <TouchableOpacity style={styles.likeButton}>
-                            <MaterialIcons name="thumb-up" size={16} color={Colors.primary} />
-                        </TouchableOpacity>
+                    <View style={[styles.emptyState, { backgroundColor: cardColor }]}>
+                        <MaterialIcons name="people-outline" size={40} color={mutedColor} />
+                        <Text style={[styles.emptyStateText, { color: mutedColor }]}>Belum ada aktivitas teman</Text>
                     </View>
                 </View>
 
@@ -1345,5 +1170,27 @@ const styles = StyleSheet.create({
     chatPreview: {
         fontSize: 13,
         marginTop: 2,
+    },
+    // Empty state styles
+    emptyState: {
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 32,
+        borderRadius: 16,
+        gap: 8,
+    },
+    emptyStateText: {
+        fontSize: 14,
+        textAlign: "center",
+        paddingHorizontal: 20,
+    },
+    emptyStateSmall: {
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 4,
+    },
+    emptyStateTextSmall: {
+        fontSize: 12,
+        textAlign: "center",
     },
 });
