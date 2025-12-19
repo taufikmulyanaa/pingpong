@@ -12,6 +12,7 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
         storage: Platform.OS === "web" ? undefined : AsyncStorage,
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: false,
+        // Enable session detection from URL on web for OAuth callback
+        detectSessionInUrl: Platform.OS === "web",
     },
 });

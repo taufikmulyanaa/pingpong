@@ -29,6 +29,7 @@ interface Tournament {
     format: string;
     status: string;
     venue_id: string | null;
+    banner_url: string | null;
     venues?: { name: string; city: string } | null;
 }
 
@@ -193,7 +194,11 @@ export default function TournamentListScreen() {
                             onPress={() => router.push({ pathname: "/tournament/[id]", params: { id: tournament.id } })}
                         >
                             <Image
-                                source={{ uri: `https://placehold.co/320x120/${Colors.secondary.replace("#", "")}/${Colors.accent.replace("#", "")}?text=${encodeURIComponent(tournament.name)}` }}
+                                source={
+                                    tournament.banner_url
+                                        ? { uri: tournament.banner_url }
+                                        : { uri: `https://placehold.co/320x120/${Colors.secondary.replace("#", "")}/${Colors.accent.replace("#", "")}?text=${encodeURIComponent(tournament.name)}` }
+                                }
                                 style={styles.tournamentImage}
                             />
                             <View style={styles.tournamentContent}>

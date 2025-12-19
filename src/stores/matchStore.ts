@@ -88,6 +88,8 @@ export const useMatchStore = create<MatchState>((set, get) => ({
         set({ isLoading: true });
 
         try {
+            console.log("Fetching challenges for userId:", userId);
+
             const { data, error } = await supabase
                 .from("challenges")
                 .select(`
@@ -98,12 +100,16 @@ export const useMatchStore = create<MatchState>((set, get) => ({
                 .or(`challenger_id.eq.${userId},challenged_id.eq.${userId}`)
                 .order("created_at", { ascending: false });
 
+            console.log("Challenges query result:", { data, error });
+
             if (error) throw error;
 
             const challenges = (data || []) as Challenge[];
             const pending = challenges.filter(
                 (c) => c.status === "PENDING" && c.challenged_id === userId
             );
+
+            console.log("Pending challenges:", pending);
 
             set({ challenges, pendingChallenges: pending });
         } catch (error) {
@@ -112,6 +118,7 @@ export const useMatchStore = create<MatchState>((set, get) => ({
             set({ isLoading: false });
         }
     },
+
 
     createChallenge: async (data) => {
         try {

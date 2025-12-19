@@ -142,11 +142,25 @@ export default function CariScreen() {
     const { profile } = useAuthStore();
 
     const [distance, setDistance] = useState(15);
-    const [skillLevel, setSkillLevel] = useState<"beginner" | "intermediate" | "pro">("intermediate");
+    const [skillLevel, setSkillLevel] = useState<"beginner" | "intermediate" | "pro">("beginner");
     const [players, setPlayers] = useState<Partial<Profile>[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+
+    // Auto-select skill level based on user's MR rating
+    useEffect(() => {
+        if (profile?.rating_mr) {
+            const mr = profile.rating_mr;
+            if (mr >= 1600) {
+                setSkillLevel("pro");
+            } else if (mr >= 1200) {
+                setSkillLevel("intermediate");
+            } else {
+                setSkillLevel("beginner");
+            }
+        }
+    }, [profile?.rating_mr]);
 
     // Get user location
     useEffect(() => {
@@ -163,6 +177,7 @@ export default function CariScreen() {
                 longitude: location.coords.longitude,
             });
         })();
+
     }, []);
 
     const fetchPlayers = async () => {

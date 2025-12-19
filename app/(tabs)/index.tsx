@@ -28,7 +28,7 @@ const getGreeting = (): string => {
 export default function HomeScreen() {
     const router = useRouter();
     const { profile, fetchProfile } = useAuthStore();
-    const { pendingChallenges } = useMatchStore();
+    const { pendingChallenges, fetchChallenges } = useMatchStore();
 
     const [refreshing, setRefreshing] = React.useState(false);
     const [pendingBookings, setPendingBookings] = React.useState<any[]>([]);
@@ -44,15 +44,24 @@ export default function HomeScreen() {
         if (data) setPendingBookings(data);
     };
 
+    // Fetch challenges on mount
     React.useEffect(() => {
-        fetchPendingBookings();
+        if (profile?.id) {
+            fetchChallenges(profile.id);
+            fetchPendingBookings();
+        }
     }, [profile?.id]);
 
     const onRefresh = React.useCallback(async () => {
         setRefreshing(true);
-        await Promise.all([fetchProfile(), fetchPendingBookings()]);
+        await Promise.all([
+            fetchProfile(),
+            fetchPendingBookings(),
+            profile?.id ? fetchChallenges(profile.id) : Promise.resolve(),
+        ]);
         setRefreshing(false);
     }, [profile?.id]);
+
 
     const xpProgress = profile ? getXpProgress(profile.xp) : { current: 0, max: 1000, percentage: 0 };
     const levelTitle = profile ? getLevelTitle(profile.level) : "Pemula";
@@ -300,11 +309,60 @@ export default function HomeScreen() {
                         </TouchableOpacity>
                     </View>
 
-                    <View style={[styles.emptyState, { backgroundColor: cardColor }]}>
-                        <MaterialIcons name="mail-outline" size={40} color={mutedColor} />
-                        <Text style={[styles.emptyStateText, { color: mutedColor }]}>Belum ada tantangan masuk</Text>
-                    </View>
+                    {pendingChallenges.length > 0 ? (
+                        <View style={{ gap: 12 }}>
+                            {pendingChallenges.map((challenge: any) => (
+                                <View key={challenge.id} style={[styles.challengeItemCard, { backgroundColor: cardColor, borderColor: "rgba(0,0,0,0.05)" }]}>
+                                    <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                                        <Image
+                                            source={{ uri: challenge.challenger?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(challenge.challenger?.name || "User")}&background=4169E1&color=fff` }}
+                                            style={{ width: 48, height: 48, borderRadius: 24 }}
+                                        />
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={[styles.challengeItemName, { color: textColor }]}>{challenge.challenger?.name || "Pemain"}</Text>
+                                            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                                                <MaterialIcons name={challenge.match_type === "RANKED" ? "emoji-events" : "sports-tennis"} size={14} color={challenge.match_type === "RANKED" ? "#F59E0B" : Colors.primary} />
+                                                <Text style={[styles.challengeItemType, { color: mutedColor }]}>
+                                                    {challenge.match_type === "RANKED" ? "Ranked" : "Friendly"} • Best of {challenge.best_of}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    </View>
+                                    <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+                                        <TouchableOpacity
+                                            style={[styles.challengeDeclineBtn, { borderColor: mutedColor }]}
+                                            onPress={() => {
+                                                const { respondToChallenge, fetchChallenges } = useMatchStore.getState();
+                                                respondToChallenge(challenge.id, false).then(() => {
+                                                    if (profile?.id) fetchChallenges(profile.id);
+                                                });
+                                            }}
+                                        >
+                                            <Text style={[styles.challengeDeclineText, { color: mutedColor }]}>Tolak</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[styles.challengeAcceptBtn, { backgroundColor: Colors.primary }]}
+                                            onPress={() => {
+                                                const { respondToChallenge, fetchChallenges } = useMatchStore.getState();
+                                                respondToChallenge(challenge.id, true).then(() => {
+                                                    if (profile?.id) fetchChallenges(profile.id);
+                                                });
+                                            }}
+                                        >
+                                            <Text style={styles.challengeAcceptText}>Terima</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            ))}
+                        </View>
+                    ) : (
+                        <View style={[styles.emptyState, { backgroundColor: cardColor }]}>
+                            <MaterialIcons name="mail-outline" size={40} color={mutedColor} />
+                            <Text style={[styles.emptyStateText, { color: mutedColor }]}>Belum ada tantangan masuk</Text>
+                        </View>
+                    )}
                 </View>
+
 
                 {/* Streak & Head-to-Head */}
                 <View style={styles.section}>
@@ -1258,4 +1316,40 @@ const styles = StyleSheet.create({
         fontSize: 12,
         textAlign: "center",
     },
+    // Challenge Item Card Styles
+    challengeItemCard: {
+        padding: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+    },
+    challengeItemName: {
+        fontSize: 15,
+        fontWeight: "600",
+    },
+    challengeItemType: {
+        fontSize: 12,
+    },
+    challengeDeclineBtn: {
+        flex: 1,
+        paddingVertical: 10,
+        borderRadius: 8,
+        borderWidth: 1,
+        alignItems: "center",
+    },
+    challengeDeclineText: {
+        fontSize: 14,
+        fontWeight: "500",
+    },
+    challengeAcceptBtn: {
+        flex: 1,
+        paddingVertical: 10,
+        borderRadius: 8,
+        alignItems: "center",
+    },
+    challengeAcceptText: {
+        fontSize: 14,
+        fontWeight: "600",
+        color: "#fff",
+    },
 });
+

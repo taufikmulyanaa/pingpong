@@ -76,23 +76,32 @@ export default function NewChallengeScreen() {
         setIsLoading(true);
 
         try {
-            const { data, error } = await supabase
-                .from("challenges")
-                .insert({
-                    challenger_id: profile.id,
-                    challenged_id: opponent.id,
-                    match_type: matchType,
-                    best_of: bestOf,
-                    message: `${profile.name} mengajak kamu bertanding ${matchType === "RANKED" ? "Ranked" : "Friendly"} Match!`,
-                    status: "PENDING",
-                })
+            const challengeData = {
+                challenger_id: profile.id,
+                challenged_id: opponent.id,
+                match_type: matchType,
+                best_of: bestOf,
+                message: `${profile.name} mengajak kamu bertanding ${matchType === "RANKED" ? "Ranked" : "Friendly"} Match!`,
+                status: "PENDING",
+                expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now
+            };
+
+            console.log("Creating challenge with data:", challengeData);
+
+            const { data, error } = await (supabase
+                .from("challenges") as any)
+                .insert(challengeData)
                 .select()
                 .single();
 
+
+            console.log("Challenge creation result:", { data, error });
+
             if (error) {
                 console.error("Error creating challenge:", error);
-                Alert.alert("Error", "Gagal mengirim tantangan. Silakan coba lagi.");
+                Alert.alert("Error", `Gagal mengirim tantangan: ${error.message}`);
             } else {
+                console.log("Challenge created successfully:", data);
                 Alert.alert(
                     "Tantangan Terkirim!",
                     `Tantangan ${matchType === "RANKED" ? "Ranked" : "Friendly"} telah dikirim ke ${opponent.name}. Menunggu konfirmasi...`,
@@ -100,12 +109,13 @@ export default function NewChallengeScreen() {
                 );
             }
         } catch (error) {
-            console.error("Error:", error);
+            console.error("Catch error:", error);
             Alert.alert("Error", "Terjadi kesalahan. Silakan coba lagi.");
         } finally {
             setIsLoading(false);
         }
     };
+
 
     const getWinRate = () => {
         if (!opponent) return 0;

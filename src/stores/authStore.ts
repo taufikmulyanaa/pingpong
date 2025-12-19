@@ -119,23 +119,67 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ isLoading: true });
 
         try {
-            const { error } = await supabase.auth.signInWithOAuth({
+            const { Platform } = require('react-native');
+
+            // For web, redirect back to the current origin after OAuth
+            // For native, use the app scheme
+            let redirectUrl: string;
+
+            if (Platform.OS === 'web') {
+                // On web, redirect back to the current origin
+                // Supabase will append the auth tokens to the URL hash
+                redirectUrl = typeof window !== 'undefined'
+                    ? window.location.origin
+                    : 'http://localhost:8081';
+            } else {
+                // On native, use the app deep link scheme
+                redirectUrl = 'pingponghub://';
+            }
+
+            const { data, error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: 'pingponghub://auth/callback',
-                    skipBrowserRedirect: false,
+                    redirectTo: redirectUrl,
+                    skipBrowserRedirect: Platform.OS !== 'web',
                 },
             });
 
             if (error) throw error;
 
+            // For native, we need to manually open the browser
+            if (Platform.OS !== 'web' && data?.url) {
+                const WebBrowser = require('expo-web-browser');
+                const result = await WebBrowser.openAuthSessionAsync(
+                    data.url,
+                    redirectUrl
+                );
+
+                // Handle the result from WebBrowser
+                if (result.type === 'success' && result.url) {
+                    // Extract tokens from URL and set session
+                    const url = new URL(result.url);
+                    const accessToken = url.searchParams.get('access_token');
+                    const refreshToken = url.searchParams.get('refresh_token');
+
+                    if (accessToken && refreshToken) {
+                        await supabase.auth.setSession({
+                            access_token: accessToken,
+                            refresh_token: refreshToken,
+                        });
+                    }
+                }
+            }
+
             return { error: null };
         } catch (error) {
+            console.error('Google Sign In Error:', error);
             return { error: error as Error };
         } finally {
             set({ isLoading: false });
         }
     },
+
+
 
     signOut: async () => {
         set({ isLoading: true });

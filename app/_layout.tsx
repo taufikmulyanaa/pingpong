@@ -7,6 +7,7 @@ import { StatusBar } from "expo-status-bar";
 import { useColorScheme, Platform } from "react-native";
 import { useAuthStore } from "@/stores/authStore";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { usePresence } from "@/hooks/usePresence";
 
 const Colors = {
     primary: "#009688",
@@ -22,10 +23,14 @@ export default function RootLayout() {
     const colorScheme = useColorScheme();
     const isDark = colorScheme === "dark";
     const initialize = useAuthStore((state) => state.initialize);
+    const user = useAuthStore((state) => state.user);
 
     // Initialize push notifications (hook handles platform check internally)
     const pushNotifications = usePushNotifications();
     const expoPushToken = pushNotifications?.expoPushToken;
+
+    // Track online presence - updates is_online in database
+    usePresence(user?.id || "");
 
     const isWeb = Platform.OS === "web";
 
@@ -53,6 +58,7 @@ export default function RootLayout() {
     if (!loaded) {
         return null;
     }
+
 
     return (
         <>
