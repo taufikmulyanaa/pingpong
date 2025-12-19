@@ -421,7 +421,6 @@ export default function ClubDetailScreen() {
                     headerTransparent: true,
                     headerTitle: "",
                     headerTintColor: "#fff",
-                    headerBackTitleVisible: false,
                 }}
             />
             <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={["bottom"]}>
@@ -548,13 +547,22 @@ export default function ClubDetailScreen() {
                         {/* Action Buttons */}
                         <View style={styles.actionRow}>
                             {isOwner ? (
-                                <TouchableOpacity
-                                    style={[styles.actionBtn, { backgroundColor: Colors.primary }]}
-                                    onPress={() => router.push({ pathname: "/club/members", params: { id: clubId } } as any)}
-                                >
-                                    <MaterialIcons name="settings" size={20} color="#fff" />
-                                    <Text style={styles.actionBtnText}>Kelola PTM</Text>
-                                </TouchableOpacity>
+                                <>
+                                    <TouchableOpacity
+                                        style={[styles.actionBtn, { backgroundColor: Colors.primary, flex: 1 }]}
+                                        onPress={() => router.push({ pathname: "/club/edit", params: { id: clubId } } as any)}
+                                    >
+                                        <MaterialIcons name="edit" size={20} color="#fff" />
+                                        <Text style={styles.actionBtnText}>Edit Info</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.actionBtn, { backgroundColor: "#16610E", flex: 1 }]}
+                                        onPress={() => router.push({ pathname: "/club/members", params: { id: clubId } } as any)}
+                                    >
+                                        <MaterialIcons name="settings" size={20} color="#fff" />
+                                        <Text style={styles.actionBtnText}>Kelola</Text>
+                                    </TouchableOpacity>
+                                </>
                             ) : membership.isMember ? (
                                 <TouchableOpacity
                                     style={[styles.actionBtn, { backgroundColor: "#EF4444" }]}
@@ -1335,6 +1343,8 @@ const styles = StyleSheet.create({
         marginTop: 2,
     },
     actionRow: {
+        flexDirection: "row",
+        gap: 12,
         marginTop: 16,
     },
     actionBtn: {

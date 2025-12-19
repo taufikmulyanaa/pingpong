@@ -8,6 +8,9 @@ import {
     StyleSheet,
     TextInput,
     RefreshControl,
+    Modal,
+    Alert,
+    ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -38,6 +41,16 @@ interface Club {
     logo_url: string | null;
     member_count: number;
     avg_rating_mr: number;
+    owner_id: string;
+}
+
+interface SearchUser {
+    id: string;
+    name: string;
+    avatar_url: string | null;
+    rating_mr: number;
+    level: number;
+    city: string | null;
 }
 
 type FilterType = "all" | "admin" | "top" | "online";
@@ -54,6 +67,13 @@ export default function ClubMembersScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
+    // Add member modal state
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [userSearchQuery, setUserSearchQuery] = useState("");
+    const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const [isAdding, setIsAdding] = useState<string | null>(null);
+
     const bgColor = Colors.background;
     const cardColor = Colors.surface;
     const textColor = Colors.text;
@@ -62,9 +82,9 @@ export default function ClubMembersScreen() {
     const fetchClub = async () => {
         if (!clubId) return;
 
-        const { data } = await supabase
-            .from("clubs")
-            .select("id, name, logo_url, member_count, avg_rating_mr")
+        const { data } = await (supabase
+            .from("clubs") as any)
+            .select("id, name, logo_url, member_count, avg_rating_mr, owner_id")
             .eq("id", clubId)
             .single();
 
@@ -119,6 +139,66 @@ export default function ClubMembersScreen() {
         setRefreshing(true);
         fetchClub();
         fetchMembers();
+    };
+
+    // Check if current user is owner/admin
+    const isOwnerOrAdmin = club?.owner_id === profile?.id ||
+        members.some(m => m.user?.id === profile?.id && ['OWNER', 'ADMIN'].includes(m.role));
+
+    // Search users for adding
+    const searchUsers = async (query: string) => {
+        if (!query.trim() || query.length < 2) {
+            setSearchResults([]);
+            return;
+        }
+
+        setIsSearching(true);
+
+        // Get existing member IDs
+        const memberIds = members.map(m => m.user?.id).filter(Boolean);
+
+        const { data, error } = await (supabase
+            .from('profiles') as any)
+            .select('id, name, avatar_url, rating_mr, level, city')
+            .or(`name.ilike.%${query}%,email.ilike.%${query}%`)
+            .not('id', 'in', `(${memberIds.length > 0 ? memberIds.join(',') : 'null'})`)
+            .limit(10);
+
+        if (data) {
+            setSearchResults(data);
+        }
+        setIsSearching(false);
+    };
+
+    // Add member
+    const handleAddMember = async (userId: string) => {
+        if (!clubId) return;
+
+        setIsAdding(userId);
+
+        const { error } = await (supabase
+            .from('club_members') as any)
+            .insert({
+                club_id: clubId,
+                user_id: userId,
+                role: 'MEMBER',
+                status: 'APPROVED',
+                joined_at: new Date().toISOString(),
+            });
+
+        setIsAdding(null);
+
+        if (error) {
+            console.error('Error adding member:', error);
+            Alert.alert('Error', 'Gagal menambahkan anggota');
+        } else {
+            Alert.alert('Berhasil', 'Anggota berhasil ditambahkan');
+            setShowAddModal(false);
+            setUserSearchQuery('');
+            setSearchResults([]);
+            fetchMembers();
+            fetchClub();
+        }
     };
 
     // Filter members
@@ -182,7 +262,13 @@ export default function ClubMembersScreen() {
                         <MaterialIcons name="arrow-back" size={24} color="#fff" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Anggota PTM</Text>
-                    <View style={styles.headerBtn} />
+                    {(isOwnerOrAdmin || isLoading) ? (
+                        <TouchableOpacity style={styles.headerBtn} onPress={() => setShowAddModal(true)}>
+                            <MaterialIcons name="person-add" size={24} color="#fff" />
+                        </TouchableOpacity>
+                    ) : (
+                        <View style={styles.headerBtn} />
+                    )}
                 </View>
                 {/* Stats Cards */}
                 <View style={styles.statsContainer}>
@@ -335,6 +421,104 @@ export default function ClubMembersScreen() {
                     <View style={{ height: 100 }} />
                 </ScrollView>
             </SafeAreaView>
+
+            {/* Add Member Modal */}
+            <Modal visible={showAddModal} animationType="slide" transparent>
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalContent, { backgroundColor: bgColor }]}>
+                        <View style={styles.modalHeader}>
+                            <Text style={[styles.modalTitle, { color: textColor }]}>Tambah Anggota</Text>
+                            <TouchableOpacity onPress={() => {
+                                setShowAddModal(false);
+                                setUserSearchQuery('');
+                                setSearchResults([]);
+                            }}>
+                                <MaterialIcons name="close" size={24} color={textColor} />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Search Input */}
+                        <View style={[styles.modalSearchBar, { backgroundColor: cardColor }]}>
+                            <MaterialIcons name="search" size={20} color={mutedColor} />
+                            <TextInput
+                                style={[styles.modalSearchInput, { color: textColor }]}
+                                placeholder="Cari nama atau email..."
+                                placeholderTextColor={mutedColor}
+                                value={userSearchQuery}
+                                onChangeText={(text) => {
+                                    setUserSearchQuery(text);
+                                    searchUsers(text);
+                                }}
+                                autoFocus
+                            />
+                            {isSearching && <ActivityIndicator size="small" color={Colors.primary} />}
+                        </View>
+
+                        {/* Search Results */}
+                        <ScrollView style={styles.modalResults}>
+                            {searchResults.length === 0 && userSearchQuery.length >= 2 && !isSearching ? (
+                                <View style={styles.modalEmptyState}>
+                                    <MaterialIcons name="person-search" size={40} color={mutedColor} />
+                                    <Text style={[styles.modalEmptyText, { color: mutedColor }]}>
+                                        Tidak ditemukan pengguna
+                                    </Text>
+                                </View>
+                            ) : userSearchQuery.length < 2 ? (
+                                <View style={styles.modalEmptyState}>
+                                    <MaterialIcons name="search" size={40} color={mutedColor} />
+                                    <Text style={[styles.modalEmptyText, { color: mutedColor }]}>
+                                        Ketik minimal 2 karakter
+                                    </Text>
+                                </View>
+                            ) : (
+                                searchResults.map((user) => (
+                                    <View
+                                        key={user.id}
+                                        style={[styles.modalUserCard, { backgroundColor: cardColor }]}
+                                    >
+                                        {user.avatar_url ? (
+                                            <Image source={{ uri: user.avatar_url }} style={styles.modalUserAvatar} />
+                                        ) : (
+                                            <View style={[styles.modalUserAvatar, { backgroundColor: Colors.primary }]}>
+                                                <Text style={styles.modalUserAvatarText}>
+                                                    {user.name.charAt(0).toUpperCase()}
+                                                </Text>
+                                            </View>
+                                        )}
+                                        <View style={styles.modalUserInfo}>
+                                            <Text style={[styles.modalUserName, { color: textColor }]}>{user.name}</Text>
+                                            <View style={styles.modalUserStats}>
+                                                <Text style={[styles.modalUserMr, { color: Colors.primary }]}>
+                                                    MR {user.rating_mr}
+                                                </Text>
+                                                <Text style={[styles.modalUserLevel, { color: mutedColor }]}>
+                                                    • Lvl {user.level}
+                                                </Text>
+                                                {user.city && (
+                                                    <Text style={[styles.modalUserCity, { color: mutedColor }]}>
+                                                        • {user.city}
+                                                    </Text>
+                                                )}
+                                            </View>
+                                        </View>
+                                        <TouchableOpacity
+                                            style={[styles.addBtn, { backgroundColor: Colors.primary }]}
+                                            onPress={() => handleAddMember(user.id)}
+                                            disabled={isAdding === user.id}
+                                        >
+                                            {isAdding === user.id ? (
+                                                <ActivityIndicator size="small" color="#fff" />
+                                            ) : (
+                                                <MaterialIcons name="add" size={20} color="#fff" />
+                                            )}
+                                        </TouchableOpacity>
+                                    </View>
+                                ))
+                            )}
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
         </>
     );
 }
@@ -517,5 +701,102 @@ const styles = StyleSheet.create({
     emptyText: {
         fontSize: 14,
         marginTop: 12,
+    },
+    // Modal styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.5)",
+        justifyContent: "flex-end",
+    },
+    modalContent: {
+        maxHeight: "80%",
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: 20,
+    },
+    modalHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginBottom: 16,
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: "bold",
+    },
+    modalSearchBar: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        borderRadius: 12,
+        gap: 10,
+        marginBottom: 16,
+    },
+    modalSearchInput: {
+        flex: 1,
+        fontSize: 16,
+    },
+    modalResults: {
+        maxHeight: 400,
+    },
+    modalEmptyState: {
+        alignItems: "center",
+        paddingVertical: 40,
+        gap: 12,
+    },
+    modalEmptyText: {
+        fontSize: 14,
+        textAlign: "center",
+    },
+    modalUserCard: {
+        flexDirection: "row",
+        alignItems: "center",
+        padding: 12,
+        borderRadius: 12,
+        marginBottom: 10,
+        gap: 12,
+    },
+    modalUserAvatar: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    modalUserAvatarText: {
+        color: "#fff",
+        fontSize: 16,
+        fontWeight: "bold",
+    },
+    modalUserInfo: {
+        flex: 1,
+    },
+    modalUserName: {
+        fontSize: 15,
+        fontWeight: "600",
+    },
+    modalUserStats: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        marginTop: 2,
+    },
+    modalUserMr: {
+        fontSize: 12,
+        fontWeight: "600",
+    },
+    modalUserLevel: {
+        fontSize: 12,
+    },
+    modalUserCity: {
+        fontSize: 12,
+    },
+    addBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        alignItems: "center",
+        justifyContent: "center",
     },
 });

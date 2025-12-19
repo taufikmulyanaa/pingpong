@@ -34,6 +34,7 @@ export default function HomeScreen() {
     const [unreadNotifications, setUnreadNotifications] = React.useState(0);
     const [dailyStats, setDailyStats] = React.useState({ matches: 0, wins: 0, mrChange: 0 });
     const [nearbyClubs, setNearbyClubs] = React.useState<any[]>([]);
+    const [pendingMemberRequests, setPendingMemberRequests] = React.useState(0);
 
 
     const fetchUnreadNotifications = async () => {
@@ -62,6 +63,35 @@ export default function HomeScreen() {
         }
     };
 
+    const fetchPendingMemberRequests = async () => {
+        if (!profile?.id) return;
+        try {
+            // Get clubs where current user is owner
+            const { data: ownedClubs } = await (supabase
+                .from('clubs') as any)
+                .select('id')
+                .eq('owner_id', profile.id);
+
+            if (!ownedClubs || ownedClubs.length === 0) {
+                setPendingMemberRequests(0);
+                return;
+            }
+
+            const clubIds = (ownedClubs as { id: string }[]).map(c => c.id);
+
+            // Count pending member requests for owned clubs
+            const { count } = await supabase
+                .from('club_members')
+                .select('*', { count: 'exact', head: true })
+                .in('club_id', clubIds)
+                .eq('status', 'PENDING');
+
+            setPendingMemberRequests(count || 0);
+        } catch (error) {
+            console.error("Error fetching pending requests:", error);
+        }
+    };
+
     React.useEffect(() => {
         if (profile?.id) {
 
@@ -81,6 +111,7 @@ export default function HomeScreen() {
             fetchChallenges(profile.id),
             fetchMatches(profile.id),
             fetchNearbyClubs(),
+            fetchPendingMemberRequests(),
         ]);
 
         console.log("Home Data Fetched. Current Profile MR:", useAuthStore.getState().profile?.rating_mr);
@@ -256,6 +287,29 @@ export default function HomeScreen() {
                             <Text style={styles.challengeBtnText}>Lihat</Text>
                         </TouchableOpacity>
                     </View>
+                )}
+
+                {/* Pending Member Requests for PTM Owners */}
+                {pendingMemberRequests > 0 && (
+                    <TouchableOpacity
+                        style={[styles.challengeCard, { backgroundColor: "#ff1100" }]}
+                        onPress={() => router.push("/club/approval" as any)}
+                    >
+                        <View style={styles.challengeContent}>
+                            <MaterialIcons name="person-add" size={24} color="#fff" />
+                            <View>
+                                <Text style={styles.challengeTitle}>
+                                    {pendingMemberRequests} Permintaan Bergabung
+                                </Text>
+                                <Text style={styles.challengeSubtitle}>
+                                    Ada anggota ingin join PTM kamu
+                                </Text>
+                            </View>
+                        </View>
+                        <View style={styles.challengeBtn}>
+                            <Text style={styles.challengeBtnText}>Lihat</Text>
+                        </View>
+                    </TouchableOpacity>
                 )}
 
                 {/* Menu Utama - Icon Only Grid */}
