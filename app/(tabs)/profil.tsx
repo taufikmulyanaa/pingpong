@@ -117,20 +117,46 @@ export default function ProfilScreen() {
 
                     {/* Style Tags */}
                     <View style={styles.styleTags}>
-                        <View style={[styles.styleTag, { backgroundColor: isDark ? "#374151" : "#F3F4F6", borderColor }]}>
-                            <Text style={[styles.styleTagText, { color: mutedColor }]}>
+                        <View style={[styles.styleTag, { backgroundColor: "rgba(255,255,255,0.15)", borderColor: "rgba(255,255,255,0.2)" }]}>
+                            <Text style={[styles.styleTagText, { color: "#fff" }]}>
                                 {profile?.grip_style ? GripStyles[profile.grip_style] : "Shakehand"}
                             </Text>
                         </View>
-                        <View style={[styles.styleTag, { backgroundColor: "#FFF7ED", borderColor: "#FFEDD5" }]}>
-                            <Text style={[styles.styleTagText, { color: "#EA580C" }]}>
+                        <View style={[styles.styleTag, { backgroundColor: "rgba(255,235,59,0.15)", borderColor: "rgba(255,235,59,0.2)" }]}>
+                            <Text style={[styles.styleTagText, { color: "#FFF176" }]}>
                                 {profile?.play_style ? PlayStyles[profile.play_style] : "All-Round"}
                             </Text>
                         </View>
-                        <View style={[styles.styleTag, { backgroundColor: "#EFF6FF", borderColor: "#DBEAFE" }]}>
-                            <Text style={[styles.styleTagText, { color: "#2563EB" }]}>Fast Attack</Text>
+                        <View style={[styles.styleTag, { backgroundColor: "rgba(100,181,246,0.15)", borderColor: "rgba(100,181,246,0.2)" }]}>
+                            <Text style={[styles.styleTagText, { color: "#90CAF9" }]}>Fast Attack</Text>
                         </View>
                     </View>
+
+                    {/* Equipment Info */}
+                    {(profile?.equipment_blade || profile?.equipment_rubber_black || profile?.equipment_rubber_red) && (
+                        <View style={styles.equipmentContainer}>
+                            {profile?.equipment_blade && (
+                                <View style={styles.equipmentItem}>
+                                    <MaterialIcons name="sports-tennis" size={14} color="rgba(255,255,255,0.7)" />
+                                    <Text style={styles.equipmentText}>{profile.equipment_blade}</Text>
+                                </View>
+                            )}
+                            <View style={styles.rubberRow}>
+                                {profile?.equipment_rubber_black && (
+                                    <View style={styles.equipmentItem}>
+                                        <View style={[styles.rubberDot, { backgroundColor: '#333', borderColor: '#555' }]} />
+                                        <Text style={styles.equipmentText}>{profile.equipment_rubber_black}</Text>
+                                    </View>
+                                )}
+                                {profile?.equipment_rubber_red && (
+                                    <View style={styles.equipmentItem}>
+                                        <View style={[styles.rubberDot, { backgroundColor: '#EF4444', borderColor: '#fff' }]} />
+                                        <Text style={styles.equipmentText}>{profile.equipment_rubber_red}</Text>
+                                    </View>
+                                )}
+                            </View>
+                        </View>
+                    )}
 
                     {/* Action Buttons */}
                     <View style={styles.actionButtons}>
@@ -501,6 +527,35 @@ const styles = StyleSheet.create({
     styleTagText: {
         fontSize: 12,
         fontWeight: "500",
+    },
+    equipmentContainer: {
+        marginTop: 16,
+        alignItems: "center",
+        gap: 6,
+    },
+    equipmentItem: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        backgroundColor: "rgba(255,255,255,0.1)",
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 12,
+    },
+    rubberRow: {
+        flexDirection: "row",
+        gap: 8,
+    },
+    equipmentText: {
+        color: "rgba(255,255,255,0.9)",
+        fontSize: 12,
+        fontWeight: "500",
+    },
+    rubberDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        borderWidth: 1,
     },
     actionButtons: {
         flexDirection: "row",

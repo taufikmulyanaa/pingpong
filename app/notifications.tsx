@@ -143,70 +143,79 @@ export default function NotificationsScreen() {
         <>
             <Stack.Screen
                 options={{
-                    headerShown: true,
-                    headerTitle: "Notifikasi",
-                    headerStyle: { backgroundColor: bgColor },
-                    headerTintColor: textColor,
-                    headerRight: () => unreadCount > 0 ? (
-                        <TouchableOpacity onPress={markAllAsRead} style={{ marginRight: 16 }}>
-                            <Text style={{ color: Colors.primary, fontWeight: "600" }}>Tandai Semua</Text>
-                        </TouchableOpacity>
-                    ) : null,
+                    headerShown: false,
                 }}
             />
-            <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={["bottom"]}>
-                <ScrollView
-                    style={styles.scrollView}
-                    contentContainerStyle={styles.content}
-                    showsVerticalScrollIndicator={false}
-                    refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchNotifications(); }} />
-                    }
-                >
-                    {notifications.map((notif) => (
-                        <TouchableOpacity
-                            key={notif.id}
-                            style={[
-                                styles.notifCard,
-                                { backgroundColor: notif.is_read ? cardColor : `${Colors.primary}10` }
-                            ]}
-                            onPress={() => handleNotificationPress(notif)}
-                        >
-                            <View style={[styles.iconContainer, { backgroundColor: `${getNotificationColor(notif.type)}20` }]}>
-                                <MaterialIcons
-                                    name={getNotificationIcon(notif.type)}
-                                    size={22}
-                                    color={getNotificationColor(notif.type)}
-                                />
-                            </View>
-                            <View style={styles.notifContent}>
-                                <View style={styles.notifHeader}>
-                                    <Text style={[styles.notifTitle, { color: textColor }]} numberOfLines={1}>
-                                        {notif.title}
-                                    </Text>
-                                    {!notif.is_read && <View style={styles.unreadDot} />}
-                                </View>
-                                <Text style={[styles.notifMessage, { color: mutedColor }]} numberOfLines={2}>
-                                    {notif.body}
-                                </Text>
-                                <Text style={[styles.notifTime, { color: mutedColor }]}>
-                                    {formatTime(notif.created_at)}
-                                </Text>
-                            </View>
+            <SafeAreaView style={[styles.container, { backgroundColor: Colors.primary }]} edges={["top", "left", "right"]}>
+                {/* Header */}
+                <View style={styles.header}>
+                    <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
+                        <MaterialIcons name="arrow-back" size={24} color="#fff" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Notifikasi</Text>
+                    {unreadCount > 0 ? (
+                        <TouchableOpacity style={styles.headerBtn} onPress={markAllAsRead}>
+                            <MaterialIcons name="done-all" size={22} color="#fff" />
                         </TouchableOpacity>
-                    ))}
-
-                    {notifications.length === 0 && (
-                        <View style={styles.emptyState}>
-                            <MaterialIcons name="notifications-none" size={48} color={mutedColor} />
-                            <Text style={[styles.emptyText, { color: mutedColor }]}>
-                                Belum ada notifikasi
-                            </Text>
-                        </View>
+                    ) : (
+                        <View style={{ width: 40 }} />
                     )}
+                </View>
 
-                    <View style={{ height: 40 }} />
-                </ScrollView>
+                <View style={[styles.contentContainer, { backgroundColor: bgColor }]}>
+                    <ScrollView
+                        style={styles.scrollView}
+                        contentContainerStyle={styles.content}
+                        showsVerticalScrollIndicator={false}
+                        refreshControl={
+                            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchNotifications(); }} />
+                        }
+                    >
+                        {notifications.map((notif) => (
+                            <TouchableOpacity
+                                key={notif.id}
+                                style={[
+                                    styles.notifCard,
+                                    { backgroundColor: notif.is_read ? cardColor : `${Colors.primary}10` }
+                                ]}
+                                onPress={() => handleNotificationPress(notif)}
+                            >
+                                <View style={[styles.iconContainer, { backgroundColor: `${getNotificationColor(notif.type)}20` }]}>
+                                    <MaterialIcons
+                                        name={getNotificationIcon(notif.type)}
+                                        size={22}
+                                        color={getNotificationColor(notif.type)}
+                                    />
+                                </View>
+                                <View style={styles.notifContent}>
+                                    <View style={styles.notifHeader}>
+                                        <Text style={[styles.notifTitle, { color: textColor }]} numberOfLines={1}>
+                                            {notif.title}
+                                        </Text>
+                                        {!notif.is_read && <View style={styles.unreadDot} />}
+                                    </View>
+                                    <Text style={[styles.notifMessage, { color: mutedColor }]} numberOfLines={2}>
+                                        {notif.body}
+                                    </Text>
+                                    <Text style={[styles.notifTime, { color: mutedColor }]}>
+                                        {formatTime(notif.created_at)}
+                                    </Text>
+                                </View>
+                            </TouchableOpacity>
+                        ))}
+
+                        {notifications.length === 0 && (
+                            <View style={styles.emptyState}>
+                                <MaterialIcons name="notifications-none" size={48} color={mutedColor} />
+                                <Text style={[styles.emptyText, { color: mutedColor }]}>
+                                    Belum ada notifikasi
+                                </Text>
+                            </View>
+                        )}
+
+                        <View style={{ height: 40 }} />
+                    </ScrollView>
+                </View>
             </SafeAreaView>
         </>
     );
@@ -271,5 +280,35 @@ const styles = StyleSheet.create({
     emptyText: {
         fontSize: 14,
         marginTop: 12,
+    },
+    header: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingHorizontal: 20,
+        paddingTop: 16,
+        paddingBottom: 24,
+        backgroundColor: Colors.primary,
+        borderBottomLeftRadius: 24,
+        borderBottomRightRadius: 24,
+        zIndex: 10,
+    },
+    headerBtn: {
+        width: 40,
+        height: 40,
+        justifyContent: "center",
+        alignItems: "center",
+        borderRadius: 20,
+    },
+    headerTitle: {
+        fontSize: 18,
+        fontWeight: "bold",
+        color: "#fff",
+    },
+    contentContainer: {
+        flex: 1,
+        marginTop: -20,
+        paddingTop: 20,
+        zIndex: 5,
     },
 });

@@ -9,70 +9,72 @@ export default function TermsOfServiceScreen() {
     const router = useRouter();
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
+        <SafeAreaView style={[styles.container, { backgroundColor: Colors.primary }]} edges={['top', 'left', 'right']}>
             <View style={styles.header}>
                 <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-                    <MaterialIcons name="arrow-back" size={24} color={Colors.text} />
+                    <MaterialIcons name="arrow-back" size={24} color="#fff" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Syarat & Ketentuan</Text>
                 <View style={{ width: 40 }} />
             </View>
 
-            <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
-                <Text style={styles.lastUpdated}>Terakhir diperbarui: 19 Desember 2024</Text>
+            <View style={styles.contentContainer}>
+                <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
+                    <Text style={styles.lastUpdated}>Terakhir diperbarui: 19 Desember 2024</Text>
 
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>1. Persetujuan</Text>
-                    <Text style={styles.paragraph}>
-                        Dengan mengunduh atau menggunakan aplikasi PingpongHub, Anda menyetujui syarat dan ketentuan ini. Jika Anda tidak setuju, mohon untuk tidak menggunakan aplikasi ini.
-                    </Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>2. Akun Pengguna</Text>
-                    <Text style={styles.paragraph}>
-                        Anda bertanggung jawab untuk menjaga keamanan akun Anda. Anda setuju untuk memberikan informasi yang akurat saat pendaftaran dan tidak membagikan akses akun Anda kepada orang lain.
-                    </Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>3. Etika Komunitas</Text>
-                    <Text style={styles.paragraph}>
-                        PingpongHub adalah komunitas yang positif. Dilarang keras melakukan:
-                    </Text>
-                    <View style={styles.bulletPoint}>
-                        <Text style={styles.bullet}>•</Text>
-                        <Text style={styles.bulletText}>Ujaran kebencian atau pelecehan.</Text>
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>1. Persetujuan</Text>
+                        <Text style={styles.paragraph}>
+                            Dengan mengunduh atau menggunakan aplikasi PingpongHub, Anda menyetujui syarat dan ketentuan ini. Jika Anda tidak setuju, mohon untuk tidak menggunakan aplikasi ini.
+                        </Text>
                     </View>
-                    <View style={styles.bulletPoint}>
-                        <Text style={styles.bullet}>•</Text>
-                        <Text style={styles.bulletText}>Kecurangan dalam pertandingan (match fixing).</Text>
+
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>2. Akun Pengguna</Text>
+                        <Text style={styles.paragraph}>
+                            Anda bertanggung jawab untuk menjaga keamanan akun Anda. Anda setuju untuk memberikan informasi yang akurat saat pendaftaran dan tidak membagikan akses akun Anda kepada orang lain.
+                        </Text>
                     </View>
-                    <View style={styles.bulletPoint}>
-                        <Text style={styles.bullet}>•</Text>
-                        <Text style={styles.bulletText}>Spam atau penipuan.</Text>
+
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>3. Etika Komunitas</Text>
+                        <Text style={styles.paragraph}>
+                            PingpongHub adalah komunitas yang positif. Dilarang keras melakukan:
+                        </Text>
+                        <View style={styles.bulletPoint}>
+                            <Text style={styles.bullet}>•</Text>
+                            <Text style={styles.bulletText}>Ujaran kebencian atau pelecehan.</Text>
+                        </View>
+                        <View style={styles.bulletPoint}>
+                            <Text style={styles.bullet}>•</Text>
+                            <Text style={styles.bulletText}>Kecurangan dalam pertandingan (match fixing).</Text>
+                        </View>
+                        <View style={styles.bulletPoint}>
+                            <Text style={styles.bullet}>•</Text>
+                            <Text style={styles.bulletText}>Spam atau penipuan.</Text>
+                        </View>
+                        <Text style={styles.paragraph}>
+                            Pelanggaran dapat mengakibatkan suspensi atau pemblokiran akun permanen.
+                        </Text>
                     </View>
-                    <Text style={styles.paragraph}>
-                        Pelanggaran dapat mengakibatkan suspensi atau pemblokiran akun permanen.
-                    </Text>
-                </View>
 
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>4. Konten Pengguna</Text>
-                    <Text style={styles.paragraph}>
-                        Anda memberikan kami lisensi untuk menggunakan konten yang Anda posting (seperti foto profil atau hasil pertandingan) untuk keperluan operasional aplikasi.
-                    </Text>
-                </View>
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>4. Konten Pengguna</Text>
+                        <Text style={styles.paragraph}>
+                            Anda memberikan kami lisensi untuk menggunakan konten yang Anda posting (seperti foto profil atau hasil pertandingan) untuk keperluan operasional aplikasi.
+                        </Text>
+                    </View>
 
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>5. Perubahan Layanan</Text>
-                    <Text style={styles.paragraph}>
-                        Kami berhak mengubah atau menghentikan layanan kapan saja tanpa pemberitahuan sebelumnya, meskipun kami akan berusaha memberitahu Anda tentang perubahan besar.
-                    </Text>
-                </View>
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>5. Perubahan Layanan</Text>
+                        <Text style={styles.paragraph}>
+                            Kami berhak mengubah atau menghentikan layanan kapan saja tanpa pemberitahuan sebelumnya, meskipun kami akan berusaha memberitahu Anda tentang perubahan besar.
+                        </Text>
+                    </View>
 
-                <View style={{ height: 40 }} />
-            </ScrollView>
+                    <View style={{ height: 40 }} />
+                </ScrollView>
+            </View>
         </SafeAreaView>
     );
 }
@@ -80,16 +82,18 @@ export default function TermsOfServiceScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.background,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(0,0,0,0.05)',
+        paddingHorizontal: 20,
+        paddingTop: 16,
+        paddingBottom: 24,
+        backgroundColor: Colors.primary,
+        borderBottomLeftRadius: 24,
+        borderBottomRightRadius: 24,
+        zIndex: 10,
     },
     backButton: {
         width: 40,
@@ -100,8 +104,15 @@ const styles = StyleSheet.create({
     },
     headerTitle: {
         fontSize: 18,
-        fontWeight: '600',
-        color: Colors.text,
+        fontWeight: 'bold',
+        color: '#fff',
+    },
+    contentContainer: {
+        flex: 1,
+        backgroundColor: Colors.background,
+        marginTop: -20,
+        paddingTop: 20,
+        zIndex: 5,
     },
     content: {
         flex: 1,

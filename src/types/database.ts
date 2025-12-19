@@ -51,6 +51,9 @@ export interface Profile {
     last_active_at: string | null;
     created_at: string;
     updated_at: string;
+    equipment_blade: string | null;
+    equipment_rubber_black: string | null;
+    equipment_rubber_red: string | null;
 }
 
 export interface Match {
