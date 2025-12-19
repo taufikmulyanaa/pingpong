@@ -65,7 +65,8 @@
         {
           "cameraPermission": "PingpongHub membutuhkan akses kamera untuk memindai QR Code."
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

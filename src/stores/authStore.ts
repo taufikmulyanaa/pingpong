@@ -16,6 +16,7 @@ interface AuthState {
     setProfile: (profile: Profile | null) => void;
     signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
     signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>;
+    signInWithGoogle: () => Promise<{ error: Error | null }>;
     signOut: () => Promise<void>;
     fetchProfile: () => Promise<void>;
     updateProfile: (updates: Partial<Profile>) => Promise<{ error: Error | null }>;
@@ -105,6 +106,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
             // Profile is created automatically by database trigger
 
+
+            return { error: null };
+        } catch (error) {
+            return { error: error as Error };
+        } finally {
+            set({ isLoading: false });
+        }
+    },
+
+    signInWithGoogle: async () => {
+        set({ isLoading: true });
+
+        try {
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: 'pingponghub://auth/callback',
+                    skipBrowserRedirect: false,
+                },
+            });
+
+            if (error) throw error;
 
             return { error: null };
         } catch (error) {

@@ -19,7 +19,7 @@ import { useAuthStore } from "@/stores/authStore";
 
 export default function LoginScreen() {
     const router = useRouter();
-    const { signIn, isLoading } = useAuthStore();
+    const { signIn, signInWithGoogle, isLoading } = useAuthStore();
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -62,6 +62,14 @@ export default function LoginScreen() {
         } else {
             router.replace("/(tabs)");
         }
+    };
+
+    const handleGoogleLogin = async () => {
+        const { error } = await signInWithGoogle();
+        if (error) {
+            Alert.alert("Google Login Gagal", error.message);
+        }
+        // Note: Redirect handled by Supabase auth state change listener
     };
 
     return (
@@ -168,7 +176,11 @@ export default function LoginScreen() {
                         </View>
 
                         {/* Social Login */}
-                        <TouchableOpacity style={[styles.socialBtn, { borderColor, backgroundColor: cardColor }]}>
+                        <TouchableOpacity
+                            style={[styles.socialBtn, { borderColor, backgroundColor: cardColor }]}
+                            onPress={handleGoogleLogin}
+                            disabled={isLoading}
+                        >
                             <MaterialIcons name="g-mobiledata" size={24} color="#EA4335" />
                             <Text style={[styles.socialBtnText, { color: textColor }]}>Masuk dengan Google</Text>
                         </TouchableOpacity>
