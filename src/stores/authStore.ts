@@ -58,6 +58,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 set({ profile: null });
             }
         });
+
+        // Listen for profile changes (Realtime)
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            supabase
+                .channel('profile-changes')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'UPDATE',
+                        schema: 'public',
+                        table: 'profiles',
+                        filter: `id=eq.${user.id}`,
+                    },
+                    (payload) => {
+                        console.log('Profile updated via Realtime:', payload.new);
+                        set({ profile: payload.new as Profile });
+                    }
+                )
+                .subscribe();
+        }
     },
 
     setSession: (session) => {
@@ -199,6 +220,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (!user) return;
 
         try {
+            console.log("Fetching profile for user:", user.id);
+
             const { data, error } = await supabase
                 .from("profiles")
                 .select("*")
@@ -207,7 +230,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
             if (error) throw error;
 
+            console.log("Profile fetched from DB:", data);
+            console.log("DB rating_mr:", data?.rating_mr);
+
             set({ profile: data as Profile });
+
+            console.log("Profile state set. New state rating_mr:", get().profile?.rating_mr);
         } catch (error) {
             console.error("Error fetching profile:", error);
         }

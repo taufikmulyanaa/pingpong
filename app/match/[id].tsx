@@ -13,6 +13,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams, Stack } from "expo-router";
 import { Colors, SharedStyles, ExtendedColors } from "../../src/lib/constants";
 import { useMatchStore } from "../../src/stores/matchStore";
+import { useAuthStore } from "../../src/stores/authStore";
 import { supabase } from "../../src/lib/supabase";
 
 export default function MatchScoringScreen() {
@@ -119,6 +120,9 @@ export default function MatchScoringScreen() {
                 : currentMatch?.player2_id;
 
             await completeMatch(matchId!, matchWinnerId!);
+
+            // Refresh profile to update MR badge immediately
+            await useAuthStore.getState().fetchProfile();
 
             Alert.alert(
                 "Pertandingan Selesai!",

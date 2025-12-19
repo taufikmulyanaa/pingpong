@@ -264,7 +264,7 @@ export const useMatchStore = create<MatchState>((set, get) => ({
             const { currentMatch } = get();
             if (!currentMatch) throw new Error("No current match");
 
-            // Calculate rating changes (simplified ELO)
+            // Calculate rating changes (ELO)
             const K = 32;
             const p1Rating = currentMatch.player1_rating_before || 1000;
             const p2Rating = currentMatch.player2_rating_before || 1000;
@@ -278,40 +278,63 @@ export const useMatchStore = create<MatchState>((set, get) => ({
             const change1 = Math.round(K * (actual1 - expected1));
             const change2 = Math.round(K * (actual2 - expected2));
 
-            // Update match
-            const { error: matchError } = await (supabase.from("matches") as any)
-                .update({
-                    status: "COMPLETED",
-                    winner_id: winnerId,
-                    player1_rating_change: change1,
-                    player2_rating_change: change2,
-                    completed_at: new Date().toISOString(),
-                })
-                .eq("id", matchId);
+            console.log("Completing match. P1 change:", change1, "P2 change:", change2);
 
-            if (matchError) throw matchError;
+            // Try RPC first
+            const { data: rpcData, error: rpcError } = await (supabase.rpc as any)("finish_match", {
+                p_match_id: matchId,
+                p_winner_id: winnerId
+            });
 
-            // Update player stats - simplified version without RPC
-            // In production, use the database function
-            const { error: p1Error } = await (supabase.from("profiles") as any)
-                .update({
-                    rating_mr: p1Rating + change1,
-                    total_matches: (currentMatch.player1 as any)?.total_matches + 1 || 1,
-                })
-                .eq("id", currentMatch.player1_id);
+            if (rpcError) {
+                console.warn("RPC finish_match failed, using fallback:", rpcError.message);
 
-            const { error: p2Error } = await (supabase.from("profiles") as any)
-                .update({
-                    rating_mr: p2Rating + change2,
-                    total_matches: (currentMatch.player2 as any)?.total_matches + 1 || 1,
-                })
-                .eq("id", currentMatch.player2_id);
+                // Fallback: Update matches table
+                const { error: matchError } = await (supabase.from("matches") as any)
+                    .update({
+                        status: "COMPLETED",
+                        winner_id: winnerId,
+                        player1_rating_change: change1,
+                        player2_rating_change: change2,
+                        completed_at: new Date().toISOString(),
+                    })
+                    .eq("id", matchId);
 
-            if (p1Error) console.error("Error updating player 1:", p1Error);
-            if (p2Error) console.error("Error updating player 2:", p2Error);
+                if (matchError) throw matchError;
+
+                // Fallback: Update Player 1 profile
+                const { error: p1Error } = await (supabase.from("profiles") as any)
+                    .update({
+                        rating_mr: p1Rating + change1,
+                        total_matches: (currentMatch.player1 as any)?.total_matches + 1 || 1,
+                        wins: (currentMatch.player1 as any)?.wins + (winnerId === currentMatch.player1_id ? 1 : 0) || (winnerId === currentMatch.player1_id ? 1 : 0),
+                    })
+                    .eq("id", currentMatch.player1_id);
+
+                if (p1Error) console.error("Error updating player 1:", p1Error);
+
+                // Fallback: Update Player 2 profile  
+                const { error: p2Error } = await (supabase.from("profiles") as any)
+                    .update({
+                        rating_mr: p2Rating + change2,
+                        total_matches: (currentMatch.player2 as any)?.total_matches + 1 || 1,
+                        wins: (currentMatch.player2 as any)?.wins + (winnerId === currentMatch.player2_id ? 1 : 0) || (winnerId === currentMatch.player2_id ? 1 : 0),
+                    })
+                    .eq("id", currentMatch.player2_id);
+
+                if (p2Error) console.error("Error updating player 2:", p2Error);
+
+                console.log("Fallback update complete.");
+            } else {
+                console.log("Match completed via RPC:", rpcData);
+            }
+
+            // Refetch current match to get updated status
+            await get().fetchMatch(matchId);
 
             return { error: null };
         } catch (error) {
+            console.error("Error completing match:", error);
             return { error: error as Error };
         }
     },

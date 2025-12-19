@@ -194,7 +194,7 @@ export default function ChatDetailScreen() {
                     <TouchableOpacity style={styles.headerProfile}>
                         <View style={styles.headerAvatarContainer}>
                             <Image
-                                source={{ uri: partner?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(partner?.name || "User")}&background=0084FF&color=fff` }}
+                                source={{ uri: partner?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(partner?.name || "User")}&background=FF1100&color=fff` }}
                                 style={styles.headerAvatar}
                             />
                             {partner?.is_online && <View style={styles.onlineDot} />}
@@ -225,7 +225,7 @@ export default function ChatDetailScreen() {
                         {/* Partner info at top */}
                         <View style={styles.chatIntro}>
                             <Image
-                                source={{ uri: partner?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(partner?.name || "User")}&background=0084FF&color=fff&size=200` }}
+                                source={{ uri: partner?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(partner?.name || "User")}&background=FF1100&color=fff&size=200` }}
                                 style={styles.introAvatar}
                             />
                             <Text style={styles.introName}>{partner?.name}</Text>
@@ -256,7 +256,7 @@ export default function ChatDetailScreen() {
                                         <View style={styles.avatarSpace}>
                                             {showAvatar && (
                                                 <Image
-                                                    source={{ uri: partner?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(partner?.name || "User")}&background=0084FF&color=fff` }}
+                                                    source={{ uri: partner?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(partner?.name || "User")}&background=FF1100&color=fff` }}
                                                     style={styles.messageAvatar}
                                                 />
                                             )}
@@ -285,7 +285,7 @@ export default function ChatDetailScreen() {
                                         <View style={styles.readIndicator}>
                                             {msg.is_read ? (
                                                 <Image
-                                                    source={{ uri: partner?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(partner?.name || "User")}&background=0084FF&color=fff` }}
+                                                    source={{ uri: partner?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(partner?.name || "User")}&background=FF1100&color=fff` }}
                                                     style={styles.readAvatar}
                                                 />
                                             ) : (
@@ -302,7 +302,7 @@ export default function ChatDetailScreen() {
                             <View style={[styles.messageRow, styles.messageRowOther]}>
                                 <View style={styles.avatarSpace}>
                                     <Image
-                                        source={{ uri: partner?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(partner?.name || "User")}&background=0084FF&color=fff` }}
+                                        source={{ uri: partner?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(partner?.name || "User")}&background=FF1100&color=fff` }}
                                         style={styles.messageAvatar}
                                     />
                                 </View>

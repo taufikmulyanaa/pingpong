@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { useAuthStore } from "@/stores/authStore";
 import { useMatchStore } from "@/stores/matchStore";
 import { Colors, getLevelTitle, getXpProgress } from "@/lib/constants";
@@ -28,22 +28,13 @@ const getGreeting = (): string => {
 export default function HomeScreen() {
     const router = useRouter();
     const { profile, fetchProfile } = useAuthStore();
-    const { pendingChallenges, fetchChallenges } = useMatchStore();
+    const { pendingChallenges, matches, fetchMatches, fetchChallenges } = useMatchStore();
 
     const [refreshing, setRefreshing] = React.useState(false);
-    const [pendingBookings, setPendingBookings] = React.useState<any[]>([]);
     const [unreadNotifications, setUnreadNotifications] = React.useState(0);
+    const [dailyStats, setDailyStats] = React.useState({ matches: 0, wins: 0, mrChange: 0 });
+    const [nearbyClubs, setNearbyClubs] = React.useState<any[]>([]);
 
-    const fetchPendingBookings = async () => {
-        if (!profile?.id) return;
-        const { data } = await supabase
-            .from("bookings")
-            .select("*, venue:venues!inner(owner_id, name)")
-            .eq("venue.owner_id", profile.id)
-            .eq("status", "PENDING");
-
-        if (data) setPendingBookings(data);
-    };
 
     const fetchUnreadNotifications = async () => {
         if (!profile?.id) return;
@@ -56,24 +47,85 @@ export default function HomeScreen() {
         if (count !== null) setUnreadNotifications(count);
     };
 
+    const fetchNearbyClubs = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('clubs')
+                .select('id, name, city, logo_url, avg_rating_mr, member_count')
+                .eq('is_active', true)
+                .limit(3);
+
+            if (error) throw error;
+            if (data) setNearbyClubs(data);
+        } catch (error) {
+            console.error("Error fetching clubs:", error);
+        }
+    };
+
     React.useEffect(() => {
         if (profile?.id) {
+
             fetchChallenges(profile.id);
-            fetchPendingBookings();
             fetchUnreadNotifications();
         }
     }, [profile?.id]);
 
+    const fetchData = React.useCallback(async () => {
+        if (!profile?.id) return;
+
+        console.log("Fetching Home Data for:", profile.id);
+
+        await Promise.all([
+            fetchProfile(), // This should update the profile in store
+            fetchUnreadNotifications(),
+            fetchChallenges(profile.id),
+            fetchMatches(profile.id),
+            fetchNearbyClubs(),
+        ]);
+
+        console.log("Home Data Fetched. Current Profile MR:", useAuthStore.getState().profile?.rating_mr);
+    }, [profile?.id]);
+
+    useFocusEffect(
+        React.useCallback(() => {
+            fetchData();
+        }, [fetchData])
+    );
+
     const onRefresh = React.useCallback(async () => {
         setRefreshing(true);
-        await Promise.all([
-            fetchProfile(),
-            fetchPendingBookings(),
-            fetchUnreadNotifications(),
-            profile?.id ? fetchChallenges(profile.id) : Promise.resolve(),
-        ]);
+        await fetchData();
         setRefreshing(false);
-    }, [profile?.id]);
+    }, [fetchData]);
+
+    // Calculate daily stats from matches
+    React.useEffect(() => {
+        if (!matches || !profile?.id) return;
+
+        const today = new Date().toDateString();
+        const todaysMatches = matches.filter(m =>
+            m.status === 'COMPLETED' &&
+            new Date(m.completed_at!).toDateString() === today
+        );
+
+        const wins = todaysMatches.filter(m => m.winner_id === profile.id).length;
+
+        let mrChange = 0;
+        todaysMatches.forEach(m => {
+            if (m.player1_id === profile.id) {
+                mrChange += m.player1_rating_change || 0;
+            } else if (m.player2_id === profile.id) {
+                mrChange += m.player2_rating_change || 0;
+            }
+        });
+
+        setDailyStats({
+            matches: todaysMatches.length,
+            wins,
+            mrChange
+        });
+
+    }, [matches, profile?.id]);
 
 
     const xpProgress = profile ? getXpProgress(profile.xp) : { current: 0, max: 1000, percentage: 0 };
@@ -167,17 +219,19 @@ export default function HomeScreen() {
                         {/* Stats Hari Ini Row */}
                         <View style={styles.statRow}>
                             <View style={styles.statItem}>
-                                <Text style={styles.statValue}>0</Text>
+                                <Text style={styles.statValue}>{dailyStats.matches}</Text>
                                 <Text style={styles.statLabel}>Match</Text>
                             </View>
                             <View style={styles.statDivider} />
                             <View style={styles.statItem}>
-                                <Text style={styles.statValue}>0</Text>
+                                <Text style={styles.statValue}>{dailyStats.wins}</Text>
                                 <Text style={styles.statLabel}>Menang</Text>
                             </View>
                             <View style={styles.statDivider} />
                             <View style={styles.statItem}>
-                                <Text style={[styles.statValue, { color: "#22C55E" }]}>+0</Text>
+                                <Text style={[styles.statValue, { color: dailyStats.mrChange >= 0 ? "#22C55E" : "#EF4444" }]}>
+                                    {dailyStats.mrChange >= 0 ? "+" : ""}{dailyStats.mrChange}
+                                </Text>
                                 <Text style={styles.statLabel}>MR</Text>
                             </View>
                         </View>
@@ -206,13 +260,36 @@ export default function HomeScreen() {
 
                 {/* Menu Utama - Icon Only Grid */}
                 <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, { color: textColor }]}>Menu Utama</Text>
+
                     <View style={styles.hubGrid}>
                         <TouchableOpacity style={styles.hubItem} onPress={() => router.push("/cari")}>
                             <View style={styles.hubIconCompact}>
                                 <MaterialIcons name="sports-tennis" size={26} color="#EF4444" />
                             </View>
                             <Text style={[styles.hubLabel, { color: textColor }]}>Cari Lawan</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.hubItem} onPress={() => router.push("/club" as any)}>
+                            <View style={styles.hubIconCompact}>
+                                <MaterialIcons name="groups" size={26} color="#8B5CF6" />
+                            </View>
+                            <Text style={[styles.hubLabel, { color: textColor }]}>Klub PTM</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.hubItem} onPress={() => router.push("/leaderboard" as any)}>
+                            <View style={styles.hubIconCompact}>
+                                <MaterialIcons name="leaderboard" size={26} color="#F59E0B" />
+                            </View>
+                            <Text style={[styles.hubLabel, { color: textColor }]}>Leaderboard</Text>
+                        </TouchableOpacity>
+
+
+
+                        <TouchableOpacity style={styles.hubItem} onPress={() => router.push("/match/quick")}>
+                            <View style={styles.hubIconCompact}>
+                                <MaterialIcons name="flash-on" size={26} color="#F59E0B" />
+                            </View>
+                            <Text style={[styles.hubLabel, { color: textColor }]}>Quick Match</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity style={styles.hubItem} onPress={() => router.push("/scan")}>
@@ -222,112 +299,23 @@ export default function HomeScreen() {
                             <Text style={[styles.hubLabel, { color: textColor }]}>Scan QR</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.hubItem} onPress={() => router.push("/match/quick")}>
-                            <View style={styles.hubIconCompact}>
-                                <MaterialIcons name="flash-on" size={26} color="#F59E0B" />
-                            </View>
-                            <Text style={[styles.hubLabel, { color: textColor }]}>Quick Match</Text>
-                        </TouchableOpacity>
-
-
-
                         <TouchableOpacity style={styles.hubItem} onPress={() => router.push("/tournament" as any)}>
                             <View style={styles.hubIconCompact}>
                                 <MaterialIcons name="emoji-events" size={26} color="#F59E0B" />
                             </View>
                             <Text style={[styles.hubLabel, { color: textColor }]}>Turnamen</Text>
                         </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.hubItem} onPress={() => router.push("/venue" as any)}>
-                            <View style={styles.hubIconCompact}>
-                                <MaterialIcons name="place" size={26} color={Colors.primary} />
-                            </View>
-                            <Text style={[styles.hubLabel, { color: textColor }]}>Venue</Text>
-                        </TouchableOpacity>
-
-
-
-
-                        <TouchableOpacity style={styles.hubItem} onPress={() => router.push("/host" as any)}>
-                            <View style={styles.hubIconCompact}>
-                                <MaterialIcons name="table-restaurant" size={26} color="#10B981" />
-                            </View>
-                            <Text style={[styles.hubLabel, { color: textColor }]}>Host Meja</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.hubItem} onPress={() => router.push("/venue-map" as any)}>
-                            <View style={styles.hubIconCompact}>
-                                <MaterialIcons name="map" size={26} color="#EF4444" />
-                            </View>
-                            <Text style={[styles.hubLabel, { color: textColor }]}>Peta</Text>
-                        </TouchableOpacity>
                     </View>
                 </View>
 
-                {/* Booking Requests (Host) */}
-                {pendingBookings.length > 0 && (
-                    <View style={styles.section}>
-                        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                            <Text style={[styles.sectionTitle, { color: textColor, marginBottom: 0 }]}>Permintaan Booking</Text>
-                            <View style={{ backgroundColor: "#EF4444", borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2 }}>
-                                <Text style={{ color: "#fff", fontSize: 10, fontWeight: "bold" }}>{pendingBookings.length} Baru</Text>
-                            </View>
-                        </View>
 
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 4 }}>
-                            {pendingBookings.map((b) => (
-                                <TouchableOpacity
-                                    key={b.id}
-                                    style={[styles.bookingRequestCard, { backgroundColor: cardColor, borderColor: "rgba(0,0,0,0.05)" }]}
-                                    onPress={() => router.push(`/host/${b.venue_id}` as any)}
-                                >
-                                    <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
-                                        <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.primary + "20", alignItems: "center", justifyContent: "center", marginRight: 8 }}>
-                                            <MaterialIcons name="event" size={18} color={Colors.primary} />
-                                        </View>
-                                        <Text style={[styles.bookingRequestVenue, { color: textColor }]} numberOfLines={1}>
-                                            {b.venue?.name}
-                                        </Text>
-                                    </View>
-                                    <Text style={{ fontSize: 12, color: mutedColor, marginBottom: 8 }}>
-                                        {b.booking_date} • {b.start_time.slice(0, 5)}
-                                    </Text>
-                                    <View style={{ alignSelf: "flex-start", backgroundColor: "#FEF3C7", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
-                                        <Text style={{ fontSize: 10, color: "#D97706", fontWeight: "bold" }}>Perlu Konfirmasi</Text>
-                                    </View>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    </View>
-                )}
 
-                {/* Active Match */}
-                <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, { color: textColor }]}>Pertandingan Aktif</Text>
 
-                    <View style={[styles.noActiveMatch, { backgroundColor: cardColor, borderColor: "rgba(0,0,0,0.05)" }]}>
-                        <MaterialIcons name="sports-tennis" size={48} color={mutedColor} />
-                        <Text style={[styles.noActiveTitle, { color: textColor }]}>
-                            Tidak ada pertandingan aktif
-                        </Text>
-                        <Text style={[styles.noActiveDesc, { color: mutedColor }]}>
-                            Cari lawan atau terima tantangan untuk memulai
-                        </Text>
-                    </View>
-                </View>
 
 
                 {/* Tantangan Masuk */}
                 <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <View style={styles.sectionTitleRow}>
-                            <MaterialIcons name="mail" size={20} color={Colors.primary} />
-                            <Text style={[styles.sectionTitle, { color: textColor }]}>Tantangan Masuk</Text>
-                        </View>
-                        <TouchableOpacity>
-                            <Text style={styles.seeAll}>Lihat Semua</Text>
-                        </TouchableOpacity>
-                    </View>
+
 
                     {pendingChallenges.length > 0 ? (
                         <View style={{ gap: 12 }}>
@@ -399,59 +387,61 @@ export default function HomeScreen() {
                             </Text>
                         </View>
 
-                        {/* Head-to-Head - empty state */}
+                        {/* Head-to-Head */}
                         <View style={[styles.h2hCard, { backgroundColor: cardColor }]}>
                             <Text style={[styles.h2hTitle, { color: textColor }]}>vs Lawan Terakhir</Text>
-                            <View style={[styles.emptyStateSmall, { paddingVertical: 12 }]}>
-                                <MaterialIcons name="sports-tennis" size={24} color={mutedColor} />
-                                <Text style={[styles.emptyStateTextSmall, { color: mutedColor }]}>Belum ada match</Text>
-                            </View>
+                            {matches.length > 0 && matches[0].status === 'COMPLETED' ? (
+                                <View style={{ marginTop: 12 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                                        <Text style={{ color: mutedColor, fontSize: 12 }}>
+                                            {new Date(matches[0].completed_at!).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                                        </Text>
+                                        <View style={[styles.matchResultBadge, { backgroundColor: matches[0].winner_id === profile?.id ? '#22C55E' : '#EF4444' }]}>
+                                            <Text style={styles.matchResultText}>
+                                                {matches[0].winner_id === profile?.id ? 'MENANG' : 'KALAH'}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                        <Image
+                                            source={{
+                                                uri: (matches[0]?.winner_id === profile?.id ?
+                                                    (matches[0]?.player1_id === profile?.id ? matches[0]?.player2 : matches[0]?.player1) :
+                                                    (matches[0]?.winner!))?.avatar_url || "https://ui-avatars.com/api/?background=random"
+                                            }}
+                                            style={{ width: 40, height: 40, borderRadius: 20 }}
+                                        />
+                                        <View>
+                                            <Text style={{ color: textColor, fontWeight: 'bold' }}>
+                                                {matches[0]?.winner_id === profile?.id ?
+                                                    (matches[0]?.player1_id === profile?.id ? (matches[0]?.player2 as any)?.name : (matches[0]?.player1 as any)?.name) :
+                                                    (matches[0]?.winner as any)?.name}
+                                            </Text>
+                                            <Text style={{ color: mutedColor, fontSize: 12 }}>
+                                                {(matches[0] as any).sets?.map((s: any) =>
+                                                    matches[0]?.player1_id === profile?.id ?
+                                                        `${s.player1_score}-${s.player2_score}` :
+                                                        `${s.player2_score}-${s.player1_score}`
+                                                ).join(', ')}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                </View>
+                            ) : (
+                                <View style={[styles.emptyStateSmall, { paddingVertical: 12 }]}>
+                                    <MaterialIcons name="sports-tennis" size={24} color={mutedColor} />
+                                    <Text style={[styles.emptyStateTextSmall, { color: mutedColor }]}>Belum ada match</Text>
+                                </View>
+                            )}
                         </View>
                     </View>
                 </View>
 
-                {/* Peringkat Lokal */}
-                <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <View style={styles.sectionTitleRow}>
-                            <MaterialIcons name="emoji-events" size={20} color="#F59E0B" />
-                            <Text style={[styles.sectionTitle, { color: textColor }]}>Peringkat Lokal</Text>
-                        </View>
-                        <TouchableOpacity onPress={() => router.push("/leaderboard" as any)}>
-                            <Text style={styles.seeAll}>Lihat Semua</Text>
-                        </TouchableOpacity>
-                    </View>
 
-                    <View style={[styles.rankCard, { backgroundColor: cardColor }]}>
-                        <View style={styles.rankPosition}>
-                            <Text style={styles.rankNumber}>#{"-"}</Text>
-                            <Text style={[styles.rankCity, { color: mutedColor }]}>{profile?.city || "Belum diatur"}</Text>
-                        </View>
-                        <View style={styles.rankDivider} />
-                        <View style={styles.rankStats}>
-                            <View style={styles.rankStatItem}>
-                                <Text style={[styles.rankStatValue, { color: textColor }]}>{profile?.rating_mr?.toLocaleString() || "1,000"}</Text>
-                                <Text style={[styles.rankStatLabel, { color: mutedColor }]}>MR</Text>
-                            </View>
-                            <View style={styles.rankStatItem}>
-                                <Text style={[styles.rankStatValue, { color: "#22C55E" }]}>-</Text>
-                                <Text style={[styles.rankStatLabel, { color: mutedColor }]}>Minggu ini</Text>
-                            </View>
-                        </View>
-                    </View>
-                </View>
 
                 {/* Upcoming Match */}
                 <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <View style={styles.sectionTitleRow}>
-                            <MaterialIcons name="event" size={20} color={Colors.primary} />
-                            <Text style={[styles.sectionTitle, { color: textColor }]}>Jadwal Match</Text>
-                        </View>
-                        <TouchableOpacity>
-                            <Text style={styles.seeAll}>Lihat Semua</Text>
-                        </TouchableOpacity>
-                    </View>
+
 
                     <View style={[styles.emptyState, { backgroundColor: cardColor }]}>
                         <MaterialIcons name="event-busy" size={40} color={mutedColor} />
@@ -459,61 +449,70 @@ export default function HomeScreen() {
                     </View>
                 </View>
 
-                {/* Venue Terdekat */}
+                {/* PTM Terdekat */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
                         <View style={styles.sectionTitleRow}>
                             <MaterialIcons name="place" size={20} color="#EF4444" />
-                            <Text style={[styles.sectionTitle, { color: textColor }]}>Venue Terdekat</Text>
+                            <Text style={[styles.sectionTitle, { color: textColor }]}>PTM Terdekat</Text>
                         </View>
-                        <TouchableOpacity onPress={() => router.push("/venue" as any)}>
+                        <TouchableOpacity onPress={() => router.push("/club" as any)}>
                             <Text style={styles.seeAll}>Lihat Semua</Text>
                         </TouchableOpacity>
                     </View>
 
-                    <View style={[styles.emptyState, { backgroundColor: cardColor }]}>
-                        <MaterialIcons name="location-off" size={40} color={mutedColor} />
-                        <Text style={[styles.emptyStateText, { color: mutedColor }]}>Aktifkan lokasi untuk melihat venue terdekat</Text>
-                    </View>
-                </View>
 
-                {/* Chat Terbaru */}
-                <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <View style={styles.sectionTitleRow}>
-                            <MaterialIcons name="chat" size={20} color="#8B5CF6" />
-                            <Text style={[styles.sectionTitle, { color: textColor }]}>Chat Terbaru</Text>
+
+                    {nearbyClubs.length > 0 ? (
+                        <View style={{ gap: 12 }}>
+                            {nearbyClubs.map((club) => (
+                                <TouchableOpacity
+                                    key={club.id}
+                                    style={[styles.clubCard, { backgroundColor: cardColor, borderColor: "rgba(0,0,0,0.05)" }]}
+                                    onPress={() => router.push({ pathname: "/club/[id]", params: { id: club.id } })}
+                                >
+                                    <View style={{ flexDirection: "row", gap: 12 }}>
+                                        <Image
+                                            source={{ uri: club.logo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(club.name)}&background=random` }}
+                                            style={styles.clubLogo}
+                                        />
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={[styles.clubName, { color: textColor }]} numberOfLines={1}>{club.name}</Text>
+                                            <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 }}>
+                                                <MaterialIcons name="location-on" size={14} color={mutedColor} />
+                                                <Text style={[styles.clubCity, { color: mutedColor }]}>{club.city}</Text>
+                                            </View>
+                                            <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 8 }}>
+                                                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                                                    <MaterialIcons name="star" size={14} color="#F59E0B" />
+                                                    <Text style={[styles.clubStatText, { color: mutedColor }]}>{club.avg_rating_mr || "-"}</Text>
+                                                </View>
+                                                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                                                    <MaterialIcons name="group" size={14} color={Colors.primary} />
+                                                    <Text style={[styles.clubStatText, { color: mutedColor }]}>{club.member_count || 0} Anggota</Text>
+                                                </View>
+                                            </View>
+                                        </View>
+                                    </View>
+                                </TouchableOpacity>
+                            ))}
                         </View>
-                        <TouchableOpacity onPress={() => router.push("/chat")}>
-                            <Text style={styles.seeAll}>Lihat Semua</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    <View style={[styles.emptyState, { backgroundColor: cardColor }]}>
-                        <MaterialIcons name="chat-bubble-outline" size={40} color={mutedColor} />
-                        <Text style={[styles.emptyStateText, { color: mutedColor }]}>Belum ada pesan</Text>
-                    </View>
+                    ) : (
+                        <View style={[styles.emptyState, { backgroundColor: cardColor }]}>
+                            <MaterialIcons name="location-off" size={40} color={mutedColor} />
+                            <Text style={[styles.emptyStateText, { color: mutedColor }]}>Belum ada PTM di sekitar</Text>
+                        </View>
+                    )}
                 </View>
 
-                {/* Activity Feed - Empty State */}
-                <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={[styles.sectionTitle, { color: textColor }]}>Aktivitas Teman</Text>
-                        <TouchableOpacity>
-                            <Text style={styles.seeAll}>Lihat Semua</Text>
-                        </TouchableOpacity>
-                    </View>
 
-                    <View style={[styles.emptyState, { backgroundColor: cardColor }]}>
-                        <MaterialIcons name="people-outline" size={40} color={mutedColor} />
-                        <Text style={[styles.emptyStateText, { color: mutedColor }]}>Belum ada aktivitas teman</Text>
-                    </View>
-                </View>
+
+
 
                 {/* Bottom padding for tab bar */}
                 <View style={{ height: 100 }} />
             </ScrollView>
-        </SafeAreaView>
+        </SafeAreaView >
     );
 }
 
@@ -829,7 +828,7 @@ const styles = StyleSheet.create({
     hubItem: {
         width: "20%",
         alignItems: "center",
-        gap: 8,
+        gap: 4,
     },
     hubIconCompact: {
         width: 52,
@@ -1265,6 +1264,31 @@ const styles = StyleSheet.create({
         fontWeight: "600",
     },
 
+    // Club/PTM Styles
+    clubCard: {
+        borderRadius: 12,
+        padding: 12,
+        borderWidth: 1,
+    },
+    clubLogo: {
+        width: 60,
+        height: 60,
+        borderRadius: 8,
+        backgroundColor: "rgba(0,0,0,0.05)",
+    },
+    clubName: {
+        fontSize: 15,
+        fontWeight: "600",
+        marginBottom: 2,
+    },
+    clubCity: {
+        fontSize: 12,
+    },
+    clubStatText: {
+        fontSize: 12,
+        fontWeight: "500",
+    },
+
     // Chat Styles
     chatItem: {
         flexDirection: "row",
@@ -1371,5 +1395,14 @@ const styles = StyleSheet.create({
         fontWeight: "600",
         color: "#fff",
     },
+    matchResultBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    matchResultText: {
+        color: '#fff',
+        fontSize: 10,
+        fontWeight: 'bold',
+    },
 });
-

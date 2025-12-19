@@ -96,20 +96,6 @@ export default function RootLayout() {
                         title: "Profil Pemain",
                     }}
                 />
-                <Stack.Screen
-                    name="venue/[id]"
-                    options={{
-                        headerShown: true,
-                        title: "Detail Venue",
-                    }}
-                />
-                <Stack.Screen
-                    name="venue/index"
-                    options={{
-                        headerShown: true,
-                        title: "Venue & PTM",
-                    }}
-                />
             </Stack>
         </>
     );

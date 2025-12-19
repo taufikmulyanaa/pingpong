@@ -127,178 +127,186 @@ export default function NewChallengeScreen() {
         <>
             <Stack.Screen
                 options={{
-                    headerShown: true,
-                    headerTitle: "Tantang Pemain",
-                    headerStyle: { backgroundColor: bgColor },
-                    headerTintColor: textColor,
+                    headerShown: false,
                 }}
             />
-            <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={["bottom"]}>
-                <ScrollView
-                    style={styles.scrollView}
-                    contentContainerStyle={styles.content}
-                    showsVerticalScrollIndicator={false}
-                >
-                    {/* VS Card */}
-                    <View style={[styles.vsCard, { backgroundColor: Colors.secondary }]}>
-                        <View style={styles.vsPlayers}>
-                            <View style={styles.vsPlayer}>
-                                <Image
-                                    source={{ uri: profile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.name || "Me")}&background=4169E1&color=fff` }}
-                                    style={styles.vsAvatar}
-                                />
-                                <Text style={styles.vsPlayerName}>Kamu</Text>
-                                <Text style={styles.vsPlayerMr}>MR {profile?.rating_mr || 1000}</Text>
-                            </View>
+            <SafeAreaView style={[styles.container, { backgroundColor: Colors.primary }]} edges={["top", "left", "right"]}>
+                {/* Header */}
+                <View style={styles.header}>
+                    <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
+                        <MaterialIcons name="arrow-back" size={24} color="#fff" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Tantang Pemain</Text>
+                    <View style={{ width: 40 }} />
+                </View>
 
-                            <View style={styles.vsBadge}>
-                                <Text style={styles.vsText}>VS</Text>
-                            </View>
+                <View style={[styles.contentContainer, { backgroundColor: bgColor }]}>
+                    <ScrollView
+                        style={styles.scrollView}
+                        contentContainerStyle={styles.content}
+                        showsVerticalScrollIndicator={false}
+                    >
+                        {/* VS Card */}
+                        <View style={[styles.vsCard, { backgroundColor: Colors.secondary }]}>
+                            <View style={styles.vsPlayers}>
+                                <View style={styles.vsPlayer}>
+                                    <Image
+                                        source={{ uri: profile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.name || "Me")}&background=4169E1&color=fff` }}
+                                        style={styles.vsAvatar}
+                                    />
+                                    <Text style={styles.vsPlayerName}>Kamu</Text>
+                                    <Text style={styles.vsPlayerMr}>MR {profile?.rating_mr || 1000}</Text>
+                                </View>
 
-                            <View style={styles.vsPlayer}>
-                                <Image
-                                    source={{ uri: opponent?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(opponent?.name || "Lawan")}&background=FFEB00&color=001064` }}
-                                    style={styles.vsAvatar}
-                                />
-                                <Text style={styles.vsPlayerName}>{opponent?.name || "Lawan"}</Text>
-                                <Text style={styles.vsPlayerMr}>MR {opponent?.rating_mr || 1000}</Text>
+                                <View style={styles.vsBadge}>
+                                    <Text style={styles.vsText}>VS</Text>
+                                </View>
+
+                                <View style={styles.vsPlayer}>
+                                    <Image
+                                        source={{ uri: opponent?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(opponent?.name || "Lawan")}&background=FFEB00&color=001064` }}
+                                        style={styles.vsAvatar}
+                                    />
+                                    <Text style={styles.vsPlayerName}>{opponent?.name || "Lawan"}</Text>
+                                    <Text style={styles.vsPlayerMr}>MR {opponent?.rating_mr || 1000}</Text>
+                                </View>
                             </View>
                         </View>
-                    </View>
 
-                    {/* Opponent Stats */}
-                    <View style={[styles.statsCard, { backgroundColor: cardColor, borderColor }]}>
-                        <Text style={[styles.statsTitle, { color: textColor }]}>Statistik Lawan</Text>
-                        <View style={styles.statsGrid}>
-                            <View style={styles.statItem}>
-                                <Text style={[styles.statValue, { color: Colors.primary }]}>{opponent?.level || 1}</Text>
-                                <Text style={[styles.statLabel, { color: mutedColor }]}>Level</Text>
-                            </View>
-                            <View style={styles.statItem}>
-                                <Text style={[styles.statValue, { color: "#10B981" }]}>{opponent?.wins || 0}</Text>
-                                <Text style={[styles.statLabel, { color: mutedColor }]}>Menang</Text>
-                            </View>
-                            <View style={styles.statItem}>
-                                <Text style={[styles.statValue, { color: "#EF4444" }]}>{opponent?.losses || 0}</Text>
-                                <Text style={[styles.statLabel, { color: mutedColor }]}>Kalah</Text>
-                            </View>
-                            <View style={styles.statItem}>
-                                <Text style={[styles.statValue, { color: textColor }]}>{getWinRate()}%</Text>
-                                <Text style={[styles.statLabel, { color: mutedColor }]}>Win Rate</Text>
+                        {/* Opponent Stats */}
+                        <View style={[styles.statsCard, { backgroundColor: cardColor, borderColor }]}>
+                            <Text style={[styles.statsTitle, { color: textColor }]}>Statistik Lawan</Text>
+                            <View style={styles.statsGrid}>
+                                <View style={styles.statItem}>
+                                    <Text style={[styles.statValue, { color: Colors.primary }]}>{opponent?.level || 1}</Text>
+                                    <Text style={[styles.statLabel, { color: mutedColor }]}>Level</Text>
+                                </View>
+                                <View style={styles.statItem}>
+                                    <Text style={[styles.statValue, { color: "#10B981" }]}>{opponent?.wins || 0}</Text>
+                                    <Text style={[styles.statLabel, { color: mutedColor }]}>Menang</Text>
+                                </View>
+                                <View style={styles.statItem}>
+                                    <Text style={[styles.statValue, { color: "#EF4444" }]}>{opponent?.losses || 0}</Text>
+                                    <Text style={[styles.statLabel, { color: mutedColor }]}>Kalah</Text>
+                                </View>
+                                <View style={styles.statItem}>
+                                    <Text style={[styles.statValue, { color: textColor }]}>{getWinRate()}%</Text>
+                                    <Text style={[styles.statLabel, { color: mutedColor }]}>Win Rate</Text>
+                                </View>
                             </View>
                         </View>
-                    </View>
 
-                    {/* Match Type Selection */}
-                    <View style={styles.section}>
-                        <Text style={[styles.sectionTitle, { color: textColor }]}>Jenis Pertandingan</Text>
+                        {/* Match Type Selection */}
+                        <View style={styles.section}>
+                            <Text style={[styles.sectionTitle, { color: textColor }]}>Jenis Pertandingan</Text>
 
-                        <View style={styles.typeOptions}>
-                            <TouchableOpacity
-                                style={[
-                                    styles.typeCard,
-                                    {
-                                        backgroundColor: cardColor,
-                                        borderColor: matchType === "RANKED" ? Colors.primary : borderColor,
-                                        borderWidth: matchType === "RANKED" ? 2 : 1,
-                                    },
-                                ]}
-                                onPress={() => setMatchType("RANKED")}
-                            >
-                                <View style={[styles.typeIcon, { backgroundColor: "#FEF3C7" }]}>
-                                    <MaterialIcons name="emoji-events" size={24} color="#F59E0B" />
-                                </View>
-                                <View style={styles.typeInfo}>
-                                    <Text style={[styles.typeTitle, { color: textColor }]}>Ranked Match</Text>
-                                    <Text style={[styles.typeDesc, { color: mutedColor }]}>
-                                        Mempengaruhi rating MR dan XP
-                                    </Text>
-                                </View>
-                                {matchType === "RANKED" && (
-                                    <MaterialIcons name="check-circle" size={24} color={Colors.primary} />
-                                )}
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={[
-                                    styles.typeCard,
-                                    {
-                                        backgroundColor: cardColor,
-                                        borderColor: matchType === "FRIENDLY" ? Colors.primary : borderColor,
-                                        borderWidth: matchType === "FRIENDLY" ? 2 : 1,
-                                    },
-                                ]}
-                                onPress={() => setMatchType("FRIENDLY")}
-                            >
-                                <View style={[styles.typeIcon, { backgroundColor: "#DBEAFE" }]}>
-                                    <MaterialIcons name="sports-tennis" size={24} color={Colors.primary} />
-                                </View>
-                                <View style={styles.typeInfo}>
-                                    <Text style={[styles.typeTitle, { color: textColor }]}>Friendly Match</Text>
-                                    <Text style={[styles.typeDesc, { color: mutedColor }]}>
-                                        Main santai tanpa rating
-                                    </Text>
-                                </View>
-                                {matchType === "FRIENDLY" && (
-                                    <MaterialIcons name="check-circle" size={24} color={Colors.primary} />
-                                )}
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-
-                    {/* Best Of Selection */}
-                    <View style={styles.section}>
-                        <Text style={[styles.sectionTitle, { color: textColor }]}>Format Pertandingan</Text>
-
-                        <View style={styles.bestOfOptions}>
-                            {[3, 5, 7].map((num) => (
+                            <View style={styles.typeOptions}>
                                 <TouchableOpacity
-                                    key={num}
                                     style={[
-                                        styles.bestOfBtn,
+                                        styles.typeCard,
                                         {
-                                            backgroundColor: bestOf === num ? Colors.primary : cardColor,
-                                            borderColor: bestOf === num ? Colors.primary : borderColor,
+                                            backgroundColor: cardColor,
+                                            borderColor: matchType === "RANKED" ? Colors.primary : borderColor,
+                                            borderWidth: matchType === "RANKED" ? 2 : 1,
                                         },
                                     ]}
-                                    onPress={() => setBestOf(num)}
+                                    onPress={() => setMatchType("RANKED")}
                                 >
-                                    <Text style={[
-                                        styles.bestOfText,
-                                        { color: bestOf === num ? "#fff" : textColor }
-                                    ]}>
-                                        Best of {num}
-                                    </Text>
-                                    <Text style={[
-                                        styles.bestOfSub,
-                                        { color: bestOf === num ? "rgba(255,255,255,0.8)" : mutedColor }
-                                    ]}>
-                                        First to {Math.ceil(num / 2)}
-                                    </Text>
+                                    <View style={[styles.typeIcon, { backgroundColor: "#FEF3C7" }]}>
+                                        <MaterialIcons name="emoji-events" size={24} color="#F59E0B" />
+                                    </View>
+                                    <View style={styles.typeInfo}>
+                                        <Text style={[styles.typeTitle, { color: textColor }]}>Ranked Match</Text>
+                                        <Text style={[styles.typeDesc, { color: mutedColor }]}>
+                                            Mempengaruhi rating MR dan XP
+                                        </Text>
+                                    </View>
+                                    {matchType === "RANKED" && (
+                                        <MaterialIcons name="check-circle" size={24} color={Colors.primary} />
+                                    )}
                                 </TouchableOpacity>
-                            ))}
+
+                                <TouchableOpacity
+                                    style={[
+                                        styles.typeCard,
+                                        {
+                                            backgroundColor: cardColor,
+                                            borderColor: matchType === "FRIENDLY" ? Colors.primary : borderColor,
+                                            borderWidth: matchType === "FRIENDLY" ? 2 : 1,
+                                        },
+                                    ]}
+                                    onPress={() => setMatchType("FRIENDLY")}
+                                >
+                                    <View style={[styles.typeIcon, { backgroundColor: "#DBEAFE" }]}>
+                                        <MaterialIcons name="sports-tennis" size={24} color={Colors.primary} />
+                                    </View>
+                                    <View style={styles.typeInfo}>
+                                        <Text style={[styles.typeTitle, { color: textColor }]}>Friendly Match</Text>
+                                        <Text style={[styles.typeDesc, { color: mutedColor }]}>
+                                            Main santai tanpa rating
+                                        </Text>
+                                    </View>
+                                    {matchType === "FRIENDLY" && (
+                                        <MaterialIcons name="check-circle" size={24} color={Colors.primary} />
+                                    )}
+                                </TouchableOpacity>
+                            </View>
                         </View>
+
+                        {/* Best Of Selection */}
+                        <View style={styles.section}>
+                            <Text style={[styles.sectionTitle, { color: textColor }]}>Format Pertandingan</Text>
+
+                            <View style={styles.bestOfOptions}>
+                                {[3, 5, 7].map((num) => (
+                                    <TouchableOpacity
+                                        key={num}
+                                        style={[
+                                            styles.bestOfBtn,
+                                            {
+                                                backgroundColor: bestOf === num ? Colors.primary : cardColor,
+                                                borderColor: bestOf === num ? Colors.primary : borderColor,
+                                            },
+                                        ]}
+                                        onPress={() => setBestOf(num)}
+                                    >
+                                        <Text style={[
+                                            styles.bestOfText,
+                                            { color: bestOf === num ? "#fff" : textColor }
+                                        ]}>
+                                            Best of {num}
+                                        </Text>
+                                        <Text style={[
+                                            styles.bestOfSub,
+                                            { color: bestOf === num ? "rgba(255,255,255,0.8)" : mutedColor }
+                                        ]}>
+                                            First to {Math.ceil(num / 2)}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </View>
+
+                        <View style={{ height: 100 }} />
+                    </ScrollView>
+
+                    {/* Bottom Action */}
+                    <View style={[styles.bottomAction, { backgroundColor: bgColor, borderTopColor: borderColor }]}>
+                        <TouchableOpacity
+                            style={[styles.challengeBtn, { backgroundColor: Colors.primary }]}
+                            onPress={handleChallenge}
+                            disabled={isLoading}
+                        >
+                            {isLoading ? (
+                                <Text style={styles.challengeBtnText}>Mengirim...</Text>
+                            ) : (
+                                <>
+                                    <MaterialIcons name="sports-tennis" size={20} color="#fff" />
+                                    <Text style={styles.challengeBtnText}>Kirim Tantangan</Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
                     </View>
-
-                    <View style={{ height: 100 }} />
-                </ScrollView>
-
-                {/* Bottom Action */}
-                <View style={[styles.bottomAction, { backgroundColor: bgColor, borderTopColor: borderColor }]}>
-                    <TouchableOpacity
-                        style={[styles.challengeBtn, { backgroundColor: Colors.primary }]}
-                        onPress={handleChallenge}
-                        disabled={isLoading}
-                    >
-                        {isLoading ? (
-                            <Text style={styles.challengeBtnText}>Mengirim...</Text>
-                        ) : (
-                            <>
-                                <MaterialIcons name="sports-tennis" size={20} color="#fff" />
-                                <Text style={styles.challengeBtnText}>Kirim Tantangan</Text>
-                            </>
-                        )}
-                    </TouchableOpacity>
                 </View>
             </SafeAreaView>
         </>
@@ -461,5 +469,35 @@ const styles = StyleSheet.create({
         color: "#fff",
         fontSize: 16,
         fontWeight: "600",
+    },
+    header: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingHorizontal: 20,
+        paddingTop: 16,
+        paddingBottom: 24,
+        backgroundColor: Colors.primary,
+        borderBottomLeftRadius: 24,
+        borderBottomRightRadius: 24,
+        zIndex: 10,
+    },
+    headerBtn: {
+        width: 40,
+        height: 40,
+        justifyContent: "center",
+        alignItems: "center",
+        borderRadius: 20,
+    },
+    headerTitle: {
+        fontSize: 18,
+        fontWeight: "bold",
+        color: "#fff",
+    },
+    contentContainer: {
+        flex: 1,
+        marginTop: -20,
+        paddingTop: 20,
+        zIndex: 5,
     },
 });
