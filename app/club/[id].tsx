@@ -230,7 +230,13 @@ export default function ClubDetailScreen() {
     };
 
     const handleJoin = async () => {
-        if (!clubId || !profile?.id) return;
+        if (!clubId || !profile?.id) {
+            console.log("handleJoin: Missing clubId or profile", { clubId, profileId: profile?.id });
+            Alert.alert("Error", "Silakan login terlebih dahulu");
+            return;
+        }
+
+        console.log("handleJoin: Attempting to join club", { clubId, profileId: profile.id });
 
         const { error } = await (supabase.from("club_members") as any)
             .insert({
@@ -241,8 +247,14 @@ export default function ClubDetailScreen() {
             });
 
         if (error) {
-            Alert.alert("Error", "Gagal mengajukan bergabung");
+            console.error("handleJoin error:", error);
+            if (error.code === "23505") {
+                Alert.alert("Info", "Anda sudah mengajukan permintaan bergabung");
+            } else {
+                Alert.alert("Error", error.message || "Gagal mengajukan bergabung");
+            }
         } else {
+            console.log("handleJoin: Success!");
             Alert.alert("Berhasil", "Permintaan bergabung telah dikirim!");
             setMembership({ isMember: false, isPending: true, role: "MEMBER" });
         }
@@ -479,7 +491,24 @@ export default function ClubDetailScreen() {
                             <Text style={styles.photoCountText}>{galleryImages.length} Foto</Text>
                         </TouchableOpacity>
 
+                        {/* Gabung PTM Button - Top Right */}
+                        {!isOwner && !membership.isMember && !membership.isPending && (
+                            <TouchableOpacity
+                                style={styles.joinBtnTopRight}
+                                onPress={handleJoin}
+                            >
+                                <MaterialIcons name="group-add" size={18} color="#fff" />
+                                <Text style={styles.joinBtnTopRightText}>Gabung PTM</Text>
+                            </TouchableOpacity>
+                        )}
 
+                        {/* Pending Status Badge - Top Right */}
+                        {!isOwner && membership.isPending && (
+                            <View style={[styles.joinBtnTopRight, { backgroundColor: mutedColor }]}>
+                                <MaterialIcons name="hourglass-empty" size={18} color="#fff" />
+                                <Text style={styles.joinBtnTopRightText}>Menunggu</Text>
+                            </View>
+                        )}
 
                         {/* Verified Badge */}
                         {club?.is_verified && (
@@ -576,15 +605,7 @@ export default function ClubDetailScreen() {
                                     <MaterialIcons name="hourglass-empty" size={20} color="#fff" />
                                     <Text style={styles.actionBtnText}>Menunggu Persetujuan</Text>
                                 </View>
-                            ) : (
-                                <TouchableOpacity
-                                    style={[styles.actionBtn, { backgroundColor: Colors.primary }]}
-                                    onPress={handleJoin}
-                                >
-                                    <MaterialIcons name="group-add" size={20} color="#fff" />
-                                    <Text style={styles.actionBtnText}>Gabung PTM</Text>
-                                </TouchableOpacity>
-                            )}
+                            ) : null}
                         </View>
 
                         {/* Description */}
@@ -1272,6 +1293,29 @@ const styles = StyleSheet.create({
         color: "#fff",
         fontSize: 12,
         fontWeight: "bold",
+    },
+    // Join PTM Button - Top Right
+    joinBtnTopRight: {
+        position: "absolute",
+        top: 16,
+        right: 16,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        backgroundColor: Colors.primary,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        borderRadius: 20,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5,
+    },
+    joinBtnTopRightText: {
+        color: "#fff",
+        fontSize: 13,
+        fontWeight: "600",
     },
     infoSection: {
         marginTop: -40,

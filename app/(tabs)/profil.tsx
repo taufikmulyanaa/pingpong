@@ -8,6 +8,8 @@ import {
     StyleSheet,
     useColorScheme,
     RefreshControl,
+    Alert,
+    ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -15,10 +17,20 @@ import { useRouter } from "expo-router";
 import { useAuthStore } from "@/stores/authStore";
 import { Colors, GripStyles, PlayStyles, getLevelTitle, SharedStyles, ExtendedColors } from "@/lib/constants";
 import EditProfileModal from "@/components/EditProfileModal";
+import * as ImagePicker from "expo-image-picker";
 
 import { formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { usePlayerStats, useMatchHistory } from "@/hooks/usePlayerStats";
+import { supabase } from "@/lib/supabase";
+import { uploadAvatar } from "@/lib/storage";
+
+interface UserClub {
+    id: string;
+    name: string;
+    logo_url: string | null;
+    role: string;
+}
 
 export default function ProfilScreen() {
     const router = useRouter();
@@ -32,6 +44,86 @@ export default function ProfilScreen() {
 
     const [refreshing, setRefreshing] = React.useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
+    const [userClub, setUserClub] = useState<UserClub | null>(null);
+    const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
+    // Handle avatar upload
+    const handleAvatarUpload = async () => {
+        if (!profile?.id) return;
+
+        try {
+            const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (!permissionResult.granted) {
+                Alert.alert("Izin Diperlukan", "Izinkan akses galeri untuk memilih foto");
+                return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+            });
+
+            if (!result.canceled && result.assets[0]) {
+                setIsUploadingAvatar(true);
+
+                // Convert URI to blob
+                const response = await fetch(result.assets[0].uri);
+                const blob = await response.blob();
+
+                const { url, error } = await uploadAvatar(profile.id, blob);
+
+                if (error) {
+                    Alert.alert("Error", "Gagal mengunggah foto");
+                    console.error("Upload error:", error);
+                } else {
+                    Alert.alert("Berhasil", "Foto profil berhasil diperbarui");
+                    await fetchProfile();
+                }
+
+                setIsUploadingAvatar(false);
+            }
+        } catch (error) {
+            console.error("Avatar upload error:", error);
+            Alert.alert("Error", "Gagal memilih foto");
+            setIsUploadingAvatar(false);
+        }
+    };
+
+    // Fetch user's club membership
+    const fetchUserClub = React.useCallback(async () => {
+        if (!profile?.id) return;
+        try {
+            const { data } = await supabase
+                .from('club_members')
+                .select(`
+                    role,
+                    club:clubs!club_id(id, name, logo_url)
+                `)
+                .eq('user_id', profile.id)
+                .eq('status', 'APPROVED')
+                .limit(1)
+                .single();
+
+            if (data && (data as any).club) {
+                const clubData = data as any;
+                setUserClub({
+                    id: clubData.club.id,
+                    name: clubData.club.name,
+                    logo_url: clubData.club.logo_url,
+                    role: clubData.role,
+                });
+            }
+        } catch (error) {
+            // User not in any club
+            setUserClub(null);
+        }
+    }, [profile?.id]);
+
+    React.useEffect(() => {
+        fetchUserClub();
+    }, [fetchUserClub]);
 
     const onRefresh = React.useCallback(async () => {
         setRefreshing(true);
@@ -88,18 +180,26 @@ export default function ProfilScreen() {
                     </View>
 
                     {/* Avatar */}
-                    <View style={styles.avatarWrapper}>
+                    <TouchableOpacity style={styles.avatarWrapper} onPress={handleAvatarUpload} disabled={isUploadingAvatar}>
                         <View style={styles.avatarGradient}>
                             <Image
                                 source={{ uri: profile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.name || "User")}&background=random&size=112` }}
                                 style={styles.avatar}
                             />
+                            {isUploadingAvatar && (
+                                <View style={styles.avatarLoadingOverlay}>
+                                    <ActivityIndicator color="#fff" size="large" />
+                                </View>
+                            )}
                         </View>
                         <View style={styles.levelBadge}>
                             <MaterialIcons name="military-tech" size={14} color="#fff" />
                             <Text style={styles.levelBadgeText}>Lvl {profile?.level || 1}</Text>
                         </View>
-                    </View>
+                        <View style={styles.cameraIconBadge}>
+                            <MaterialIcons name="camera-alt" size={14} color="#fff" />
+                        </View>
+                    </TouchableOpacity>
 
                     {/* Name & Username */}
                     <Text style={[styles.profileName, { color: "#fff" }]}>{profile?.name || "User"}</Text>
@@ -115,49 +215,6 @@ export default function ProfilScreen() {
                         </Text>
                     </View>
 
-                    {/* Style Tags */}
-                    <View style={styles.styleTags}>
-                        <View style={[styles.styleTag, { backgroundColor: "rgba(255,255,255,0.15)", borderColor: "rgba(255,255,255,0.2)" }]}>
-                            <Text style={[styles.styleTagText, { color: "#fff" }]}>
-                                {profile?.grip_style ? GripStyles[profile.grip_style] : "Shakehand"}
-                            </Text>
-                        </View>
-                        <View style={[styles.styleTag, { backgroundColor: "rgba(255,235,59,0.15)", borderColor: "rgba(255,235,59,0.2)" }]}>
-                            <Text style={[styles.styleTagText, { color: "#FFF176" }]}>
-                                {profile?.play_style ? PlayStyles[profile.play_style] : "All-Round"}
-                            </Text>
-                        </View>
-                        <View style={[styles.styleTag, { backgroundColor: "rgba(100,181,246,0.15)", borderColor: "rgba(100,181,246,0.2)" }]}>
-                            <Text style={[styles.styleTagText, { color: "#90CAF9" }]}>Fast Attack</Text>
-                        </View>
-                    </View>
-
-                    {/* Equipment Info */}
-                    {(profile?.equipment_blade || profile?.equipment_rubber_black || profile?.equipment_rubber_red) && (
-                        <View style={styles.equipmentContainer}>
-                            {profile?.equipment_blade && (
-                                <View style={styles.equipmentItem}>
-                                    <MaterialIcons name="sports-tennis" size={14} color="rgba(255,255,255,0.7)" />
-                                    <Text style={styles.equipmentText}>{profile.equipment_blade}</Text>
-                                </View>
-                            )}
-                            <View style={styles.rubberRow}>
-                                {profile?.equipment_rubber_black && (
-                                    <View style={styles.equipmentItem}>
-                                        <View style={[styles.rubberDot, { backgroundColor: '#333', borderColor: '#555' }]} />
-                                        <Text style={styles.equipmentText}>{profile.equipment_rubber_black}</Text>
-                                    </View>
-                                )}
-                                {profile?.equipment_rubber_red && (
-                                    <View style={styles.equipmentItem}>
-                                        <View style={[styles.rubberDot, { backgroundColor: '#EF4444', borderColor: '#fff' }]} />
-                                        <Text style={styles.equipmentText}>{profile.equipment_rubber_red}</Text>
-                                    </View>
-                                )}
-                            </View>
-                        </View>
-                    )}
-
                     {/* Action Buttons */}
                     <View style={styles.actionButtons}>
                         <TouchableOpacity
@@ -168,6 +225,122 @@ export default function ProfilScreen() {
                             <Text style={styles.followBtnText}>Edit Profil</Text>
                         </TouchableOpacity>
                     </View>
+                </View>
+
+                {/* Club Membership Card - Always Show */}
+                {userClub ? (
+                    <TouchableOpacity
+                        style={[styles.clubMemberCard, { backgroundColor: cardColor, borderColor }]}
+                        onPress={() => router.push({ pathname: "/club/[id]", params: { id: userClub.id } })}
+                    >
+                        <View style={styles.clubMemberContent}>
+                            <Image
+                                source={{
+                                    uri: userClub.logo_url ||
+                                        `https://ui-avatars.com/api/?name=${encodeURIComponent(userClub.name)}&background=001064&color=fff&size=48`,
+                                }}
+                                style={styles.clubMemberLogo}
+                            />
+                            <View style={styles.clubMemberInfo}>
+                                <Text style={[styles.clubMemberLabel, { color: mutedColor }]}>Anggota PTM</Text>
+                                <Text style={[styles.clubMemberName, { color: textColor }]}>{userClub.name}</Text>
+                                <View style={[styles.clubMemberRoleBadge, { backgroundColor: Colors.primary + '20' }]}>
+                                    <Text style={[styles.clubMemberRoleText, { color: Colors.primary }]}>
+                                        {userClub.role === 'OWNER' ? 'Owner' :
+                                            userClub.role === 'ADMIN' ? 'Admin' :
+                                                userClub.role === 'COACH' ? 'Pelatih' : 'Anggota'}
+                                    </Text>
+                                </View>
+                            </View>
+                            <MaterialIcons name="chevron-right" size={24} color={mutedColor} />
+                        </View>
+                    </TouchableOpacity>
+                ) : (
+                    <TouchableOpacity
+                        style={[styles.clubMemberCard, { backgroundColor: cardColor, borderColor }]}
+                        onPress={() => router.push("/club" as any)}
+                    >
+                        <View style={styles.clubMemberContent}>
+                            <View style={[styles.clubMemberLogoPlaceholder, { backgroundColor: mutedColor + '20' }]}>
+                                <MaterialIcons name="groups" size={24} color={mutedColor} />
+                            </View>
+                            <View style={styles.clubMemberInfo}>
+                                <Text style={[styles.clubMemberLabel, { color: mutedColor }]}>PTM</Text>
+                                <Text style={[styles.clubMemberName, { color: textColor }]}>Belum Bergabung</Text>
+                                <Text style={[styles.clubMemberSubtext, { color: mutedColor }]}>Ketuk untuk cari PTM</Text>
+                            </View>
+                            <MaterialIcons name="chevron-right" size={24} color={mutedColor} />
+                        </View>
+                    </TouchableOpacity>
+                )}
+
+                {/* Playing Style Widget */}
+                <View style={[styles.styleWidgetCard, { backgroundColor: cardColor, borderColor }]}>
+                    <View style={styles.cardHeader}>
+                        <MaterialIcons name="sports-tennis" size={20} color="#8B5CF6" />
+                        <Text style={[styles.cardTitle, { color: textColor }]}>Gaya Bermain</Text>
+                    </View>
+                    <View style={styles.styleTagsRow}>
+                        <View style={[styles.styleTagWidget, { backgroundColor: 'rgba(139,92,246,0.1)', borderColor: '#8B5CF6' }]}>
+                            <MaterialIcons name="touch-app" size={16} color="#8B5CF6" />
+                            <Text style={[styles.styleTagWidgetText, { color: textColor }]}>
+                                {profile?.grip_style ? GripStyles[profile.grip_style] : "Shakehand"}
+                            </Text>
+                        </View>
+                        <View style={[styles.styleTagWidget, { backgroundColor: 'rgba(245,158,11,0.1)', borderColor: '#F59E0B' }]}>
+                            <MaterialIcons name="speed" size={16} color="#F59E0B" />
+                            <Text style={[styles.styleTagWidgetText, { color: textColor }]}>
+                                {profile?.play_style ? PlayStyles[profile.play_style] : "All-Round"}
+                            </Text>
+                        </View>
+                    </View>
+                </View>
+
+                {/* Equipment Widget */}
+                <View style={[styles.styleWidgetCard, { backgroundColor: cardColor, borderColor }]}>
+                    <View style={styles.cardHeader}>
+                        <MaterialIcons name="sports" size={20} color="#10B981" />
+                        <Text style={[styles.cardTitle, { color: textColor }]}>Equipment</Text>
+                    </View>
+                    {profile?.equipment_blade || profile?.equipment_rubber_black || profile?.equipment_rubber_red ? (
+                        <View style={styles.equipmentWidgetContent}>
+                            {profile?.equipment_blade && (
+                                <View style={styles.equipmentWidgetRow}>
+                                    <View style={[styles.equipmentWidgetIcon, { backgroundColor: 'rgba(16,185,129,0.1)' }]}>
+                                        <MaterialIcons name="sports-tennis" size={16} color="#10B981" />
+                                    </View>
+                                    <View style={styles.equipmentWidgetInfo}>
+                                        <Text style={[styles.equipmentWidgetLabel, { color: mutedColor }]}>Blade</Text>
+                                        <Text style={[styles.equipmentWidgetValue, { color: textColor }]}>{profile.equipment_blade}</Text>
+                                    </View>
+                                </View>
+                            )}
+                            {profile?.equipment_rubber_black && (
+                                <View style={styles.equipmentWidgetRow}>
+                                    <View style={[styles.equipmentWidgetIcon, { backgroundColor: 'rgba(51,51,51,0.1)' }]}>
+                                        <View style={[styles.rubberDotWidget, { backgroundColor: '#333' }]} />
+                                    </View>
+                                    <View style={styles.equipmentWidgetInfo}>
+                                        <Text style={[styles.equipmentWidgetLabel, { color: mutedColor }]}>Rubber (Hitam)</Text>
+                                        <Text style={[styles.equipmentWidgetValue, { color: textColor }]}>{profile.equipment_rubber_black}</Text>
+                                    </View>
+                                </View>
+                            )}
+                            {profile?.equipment_rubber_red && (
+                                <View style={styles.equipmentWidgetRow}>
+                                    <View style={[styles.equipmentWidgetIcon, { backgroundColor: 'rgba(239,68,68,0.1)' }]}>
+                                        <View style={[styles.rubberDotWidget, { backgroundColor: '#EF4444' }]} />
+                                    </View>
+                                    <View style={styles.equipmentWidgetInfo}>
+                                        <Text style={[styles.equipmentWidgetLabel, { color: mutedColor }]}>Rubber (Merah)</Text>
+                                        <Text style={[styles.equipmentWidgetValue, { color: textColor }]}>{profile.equipment_rubber_red}</Text>
+                                    </View>
+                                </View>
+                            )}
+                        </View>
+                    ) : (
+                        <Text style={[styles.emptyEquipment, { color: mutedColor }]}>Belum ada data equipment</Text>
+                    )}
                 </View>
 
                 {/* Stats Grid */}
@@ -862,5 +1035,149 @@ const styles = StyleSheet.create({
     menuDivider: {
         height: 1,
         marginLeft: 48,
+    },
+    // Club Membership Card Styles
+    clubMemberCard: {
+        marginHorizontal: 20,
+        marginTop: -24,
+        marginBottom: 16,
+        borderRadius: 16,
+        borderWidth: 1,
+        overflow: 'hidden',
+    },
+    clubMemberContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        gap: 12,
+    },
+    clubMemberLogo: {
+        width: 48,
+        height: 48,
+        borderRadius: 12,
+    },
+    clubMemberInfo: {
+        flex: 1,
+    },
+    clubMemberLabel: {
+        fontSize: 11,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: 2,
+    },
+    clubMemberName: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginBottom: 4,
+    },
+    clubMemberRoleBadge: {
+        alignSelf: 'flex-start',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 8,
+    },
+    clubMemberRoleText: {
+        fontSize: 10,
+        fontWeight: '600',
+    },
+    // Playing Style Widget Styles
+    styleWidgetCard: {
+        marginHorizontal: 20,
+        marginBottom: 16,
+        borderRadius: 16,
+        borderWidth: 1,
+        padding: 16,
+    },
+    styleTagsRow: {
+        flexDirection: 'row',
+        gap: 12,
+        marginTop: 12,
+    },
+    styleTagWidget: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+    },
+    styleTagWidgetText: {
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    // Equipment Widget Styles
+    equipmentWidgetContent: {
+        gap: 12,
+        marginTop: 12,
+    },
+    equipmentWidgetRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    equipmentWidgetIcon: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    equipmentWidgetInfo: {
+        flex: 1,
+    },
+    equipmentWidgetLabel: {
+        fontSize: 11,
+        marginBottom: 2,
+    },
+    equipmentWidgetValue: {
+        fontSize: 14,
+        fontWeight: '500',
+    },
+    rubberDotWidget: {
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+    },
+    emptyEquipment: {
+        marginTop: 8,
+        fontSize: 13,
+        fontStyle: 'italic',
+    },
+    // Avatar upload styles
+    avatarLoadingOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        borderRadius: 52,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    cameraIconBadge: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        backgroundColor: Colors.primary,
+        borderRadius: 12,
+        padding: 6,
+        borderWidth: 2,
+        borderColor: '#fff',
+    },
+    // Club member placeholder styles
+    clubMemberLogoPlaceholder: {
+        width: 48,
+        height: 48,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    clubMemberSubtext: {
+        fontSize: 11,
+        marginTop: 2,
     },
 });

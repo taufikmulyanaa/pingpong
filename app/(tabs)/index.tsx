@@ -269,30 +269,10 @@ export default function HomeScreen() {
                     </View>
                 </View>
 
-                {/* Pending Challenges */}
-                {pendingChallenges.length > 0 && (
-                    <View style={[styles.challengeCard, { backgroundColor: Colors.primary }]}>
-                        <View style={styles.challengeContent}>
-                            <MaterialIcons name="notifications-active" size={24} color="#fff" />
-                            <View>
-                                <Text style={styles.challengeTitle}>
-                                    {pendingChallenges.length} Tantangan Menunggu
-                                </Text>
-                                <Text style={styles.challengeSubtitle}>
-                                    Ada yang ingin bertanding denganmu!
-                                </Text>
-                            </View>
-                        </View>
-                        <TouchableOpacity style={styles.challengeBtn}>
-                            <Text style={styles.challengeBtnText}>Lihat</Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
-
                 {/* Pending Member Requests for PTM Owners */}
                 {pendingMemberRequests > 0 && (
                     <TouchableOpacity
-                        style={[styles.challengeCard, { backgroundColor: "#ff1100" }]}
+                        style={[styles.challengeCard, { backgroundColor: "#CF0F0F" }]}
                         onPress={() => router.push("/club/approval" as any)}
                     >
                         <View style={styles.challengeContent}>
