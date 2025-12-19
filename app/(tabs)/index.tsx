@@ -32,6 +32,7 @@ export default function HomeScreen() {
 
     const [refreshing, setRefreshing] = React.useState(false);
     const [pendingBookings, setPendingBookings] = React.useState<any[]>([]);
+    const [unreadNotifications, setUnreadNotifications] = React.useState(0);
 
     const fetchPendingBookings = async () => {
         if (!profile?.id) return;
@@ -44,11 +45,22 @@ export default function HomeScreen() {
         if (data) setPendingBookings(data);
     };
 
-    // Fetch challenges on mount
+    const fetchUnreadNotifications = async () => {
+        if (!profile?.id) return;
+        const { count } = await supabase
+            .from("notifications")
+            .select("*", { count: "exact", head: true })
+            .eq("user_id", profile.id)
+            .eq("is_read", false);
+
+        if (count !== null) setUnreadNotifications(count);
+    };
+
     React.useEffect(() => {
         if (profile?.id) {
             fetchChallenges(profile.id);
             fetchPendingBookings();
+            fetchUnreadNotifications();
         }
     }, [profile?.id]);
 
@@ -57,6 +69,7 @@ export default function HomeScreen() {
         await Promise.all([
             fetchProfile(),
             fetchPendingBookings(),
+            fetchUnreadNotifications(),
             profile?.id ? fetchChallenges(profile.id) : Promise.resolve(),
         ]);
         setRefreshing(false);
@@ -104,11 +117,18 @@ export default function HomeScreen() {
                                 <Text style={styles.userName}>{profile?.name || "User"}</Text>
                             </View>
                         </View>
-                        <TouchableOpacity style={styles.notificationBtn}>
+                        <TouchableOpacity
+                            style={styles.notificationBtn}
+                            onPress={() => router.push("/notifications")}
+                        >
                             <MaterialIcons name="notifications" size={22} color="#fff" />
-                            <View style={styles.notificationBadgeCount}>
-                                <Text style={styles.notificationCountText}>3</Text>
-                            </View>
+                            {unreadNotifications > 0 && (
+                                <View style={styles.notificationBadgeCount}>
+                                    <Text style={styles.notificationCountText}>
+                                        {unreadNotifications > 9 ? "9+" : unreadNotifications}
+                                    </Text>
+                                </View>
+                            )}
                         </TouchableOpacity>
                     </View>
 
