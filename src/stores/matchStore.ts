@@ -118,6 +118,13 @@ export const useMatchStore = create<MatchState>((set, get) => ({
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error("Not authenticated");
 
+            // Get challenger name for notification
+            const { data: challengerProfile } = await supabase
+                .from("profiles")
+                .select("name")
+                .eq("id", user.id)
+                .single();
+
             const challengeData = {
                 challenger_id: user.id,
                 challenged_id: data.challenged_id,
@@ -134,6 +141,16 @@ export const useMatchStore = create<MatchState>((set, get) => ({
 
             if (error) throw error;
 
+            // Create notification for challenged user
+            await (supabase.from("notifications") as any).insert({
+                user_id: data.challenged_id,
+                type: "CHALLENGE",
+                title: "Tantangan Baru!",
+                body: `${(challengerProfile as any)?.name || "Seseorang"} menantangmu untuk ${data.match_type === "RANKED" ? "Ranked" : "Friendly"} Match!`,
+                data: { challengeId: challenge.id },
+                is_read: false,
+            });
+
             return { error: null, challenge: challenge as Challenge };
         } catch (error) {
             return { error: error as Error };
@@ -142,6 +159,8 @@ export const useMatchStore = create<MatchState>((set, get) => ({
 
     respondToChallenge: async (challengeId, accept) => {
         try {
+            const { data: { user } } = await supabase.auth.getUser();
+
             const { error: updateError } = await (supabase.from("challenges") as any)
                 .update({
                     status: accept ? "ACCEPTED" : "DECLINED",
@@ -151,17 +170,30 @@ export const useMatchStore = create<MatchState>((set, get) => ({
 
             if (updateError) throw updateError;
 
-            // If accepted, create a match
-            if (accept) {
-                const { data: challengeData } = await supabase
-                    .from("challenges")
-                    .select("*")
-                    .eq("id", challengeId)
-                    .single();
+            // Fetch challenge data for notification
+            const { data: challengeData } = await supabase
+                .from("challenges")
+                .select("*, challenged:profiles!challenged_id(name)")
+                .eq("id", challengeId)
+                .single();
 
-                if (challengeData) {
-                    const challenge = challengeData as Challenge;
+            if (challengeData) {
+                const challenge = challengeData as Challenge & { challenged: { name: string } };
 
+                // Notify the challenger about the response
+                await (supabase.from("notifications") as any).insert({
+                    user_id: challenge.challenger_id,
+                    type: "CHALLENGE",
+                    title: accept ? "Tantangan Diterima!" : "Tantangan Ditolak",
+                    body: accept
+                        ? `${(challenge as any).challenged?.name || "Lawan"} menerima tantanganmu! Match siap dimulai.`
+                        : `${(challenge as any).challenged?.name || "Lawan"} menolak tantanganmu.`,
+                    data: { challengeId: challenge.id },
+                    is_read: false,
+                });
+
+                // If accepted, create a match
+                if (accept) {
                     // Get current ratings
                     const { data: players } = await supabase
                         .from("profiles")

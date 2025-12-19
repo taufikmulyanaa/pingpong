@@ -10,6 +10,7 @@ import {
     Alert,
     Modal,
     TextInput,
+    Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -44,7 +45,7 @@ export default function VenueDetailScreen() {
 
     const [venue, setVenue] = useState<Venue | null>(null);
     const [showBookingModal, setShowBookingModal] = useState(false);
-    const [selectedDate, setSelectedDate] = useState("");
+    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [selectedTime, setSelectedTime] = useState("");
     const [duration, setDuration] = useState(1);
     const [isBooking, setIsBooking] = useState(false);
@@ -108,7 +109,7 @@ export default function VenueDetailScreen() {
         const bookingData = {
             venue_id: venue.id,
             user_id: profile.id,
-            date: selectedDate,
+            booking_date: selectedDate,
             start_time: startTime,
             end_time: endTime,
             duration_hours: duration,
@@ -121,13 +122,23 @@ export default function VenueDetailScreen() {
         setIsBooking(false);
 
         if (error) {
-            Alert.alert("Gagal", error.message);
+            console.error(error);
+            if (Platform.OS === 'web') {
+                window.alert("Gagal: " + error.message);
+            } else {
+                Alert.alert("Gagal", error.message);
+            }
         } else {
-            Alert.alert(
-                "Booking Berhasil!",
-                `Booking meja di ${venue.name} pada ${selectedDate} jam ${selectedTime} selama ${duration} jam.\n\nTotal: Rp ${(venue.price_per_hour * duration).toLocaleString()}`,
-                [{ text: "OK", onPress: () => setShowBookingModal(false) }]
-            );
+            setShowBookingModal(false);
+            if (Platform.OS === 'web') {
+                window.alert("Booking Berhasil! Silakan tunggu konfirmasi host.");
+            } else {
+                Alert.alert(
+                    "Booking Berhasil!",
+                    `Booking meja di ${venue.name} pada ${selectedDate} jam ${selectedTime} selama ${duration} jam.\n\nTotal: Rp ${(venue.price_per_hour * duration).toLocaleString()}`,
+                    [{ text: "OK" }]
+                );
+            }
         }
     };
 
@@ -330,13 +341,36 @@ export default function VenueDetailScreen() {
                         {/* Date */}
                         <View style={styles.formGroup}>
                             <Text style={[styles.formLabel, { color: textColor }]}>Tanggal</Text>
-                            <TextInput
-                                style={[styles.input, { backgroundColor: cardColor, color: textColor, borderColor }]}
-                                placeholder="YYYY-MM-DD"
-                                placeholderTextColor={mutedColor}
-                                value={selectedDate}
-                                onChangeText={setSelectedDate}
-                            />
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                                {Array.from({ length: 14 }).map((_, i) => {
+                                    const d = new Date();
+                                    d.setDate(d.getDate() + i);
+                                    const dateStr = d.toISOString().split('T')[0];
+                                    const isSelected = selectedDate === dateStr;
+                                    const dayName = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"][d.getDay()];
+
+                                    return (
+                                        <TouchableOpacity
+                                            key={dateStr}
+                                            style={[
+                                                styles.dateOption,
+                                                {
+                                                    backgroundColor: isSelected ? Colors.primary : cardColor,
+                                                    borderColor: isSelected ? Colors.primary : borderColor
+                                                }
+                                            ]}
+                                            onPress={() => setSelectedDate(dateStr)}
+                                        >
+                                            <Text style={[styles.dateDay, { color: isSelected ? "#fff" : mutedColor }]}>
+                                                {dayName}
+                                            </Text>
+                                            <Text style={[styles.dateNum, { color: isSelected ? "#fff" : textColor }]}>
+                                                {d.getDate()}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </ScrollView>
                         </View>
 
                         {/* Time Slots */}
@@ -758,5 +792,22 @@ const styles = StyleSheet.create({
     noReviewsText: {
         fontSize: 13,
         marginTop: 8,
+    },
+
+    dateOption: {
+        width: 60,
+        height: 70,
+        justifyContent: "center",
+        alignItems: "center",
+        borderRadius: 12,
+        borderWidth: 1,
+    },
+    dateDay: {
+        fontSize: 12,
+        marginBottom: 4,
+    },
+    dateNum: {
+        fontSize: 18,
+        fontWeight: "bold",
     },
 });

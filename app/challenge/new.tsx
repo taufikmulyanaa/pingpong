@@ -67,18 +67,44 @@ export default function NewChallengeScreen() {
         fetchOpponent();
     }, [playerId]);
 
-    const handleChallenge = () => {
+    const handleChallenge = async () => {
+        if (!profile || !opponent) {
+            Alert.alert("Error", "Data tidak lengkap");
+            return;
+        }
+
         setIsLoading(true);
 
-        // Simulate API call
-        setTimeout(() => {
+        try {
+            const { data, error } = await supabase
+                .from("challenges")
+                .insert({
+                    challenger_id: profile.id,
+                    challenged_id: opponent.id,
+                    match_type: matchType,
+                    best_of: bestOf,
+                    message: `${profile.name} mengajak kamu bertanding ${matchType === "RANKED" ? "Ranked" : "Friendly"} Match!`,
+                    status: "PENDING",
+                })
+                .select()
+                .single();
+
+            if (error) {
+                console.error("Error creating challenge:", error);
+                Alert.alert("Error", "Gagal mengirim tantangan. Silakan coba lagi.");
+            } else {
+                Alert.alert(
+                    "Tantangan Terkirim!",
+                    `Tantangan ${matchType === "RANKED" ? "Ranked" : "Friendly"} telah dikirim ke ${opponent.name}. Menunggu konfirmasi...`,
+                    [{ text: "OK", onPress: () => router.back() }]
+                );
+            }
+        } catch (error) {
+            console.error("Error:", error);
+            Alert.alert("Error", "Terjadi kesalahan. Silakan coba lagi.");
+        } finally {
             setIsLoading(false);
-            Alert.alert(
-                "Tantangan Terkirim!",
-                `Tantangan ${matchType === "RANKED" ? "Ranked" : "Friendly"} telah dikirim ke ${opponent?.name || "lawan"}`,
-                [{ text: "OK", onPress: () => router.back() }]
-            );
-        }, 1000);
+        }
     };
 
     const getWinRate = () => {

@@ -13,7 +13,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, Stack } from "expo-router";
-import { Colors, SharedStyles, ExtendedColors } from "../../src/lib/constants";
+import { Colors } from "../../src/lib/constants";
+import { supabase } from "../../src/lib/supabase";
 
 interface Tournament {
     id: string;
@@ -23,24 +24,52 @@ interface Tournament {
     end_date: string;
     max_participants: number;
     current_participants: number;
-    entry_fee: number;
+    registration_fee: number;
     prize_pool: number;
     format: string;
     status: string;
-    venue_name: string;
-    city: string;
+    venue_id: string | null;
+    venues?: { name: string; city: string } | null;
 }
-
-// Mock data removed
 
 export default function TournamentListScreen() {
     const router = useRouter();
 
     const [tournaments, setTournaments] = useState<Tournament[]>([]);
     const [refreshing, setRefreshing] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<"upcoming" | "ongoing" | "past">("upcoming");
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newTournament, setNewTournament] = useState({ name: "", venue: "", date: "" });
+
+    // Fetch tournaments from Supabase
+    const fetchTournaments = async () => {
+        try {
+            const { data, error } = await supabase
+                .from("tournaments")
+                .select(`
+                    *,
+                    venues (name, city)
+                `)
+                .order("start_date", { ascending: true });
+
+            if (error) {
+                console.error("Error fetching tournaments:", error);
+                setTournaments([]);
+            } else {
+                setTournaments(data || []);
+            }
+        } catch (error) {
+            console.error("Error:", error);
+            setTournaments([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchTournaments();
+    }, []);
 
     // Light mode colors
     const bgColor = Colors.background;
@@ -49,18 +78,21 @@ export default function TournamentListScreen() {
     const mutedColor = Colors.muted;
     const borderColor = Colors.border;
 
+    // Map database status to filter categories
     const filteredTournaments = tournaments.filter(t => {
-        if (filter === "upcoming") return t.status === "REGISTRATION";
-        if (filter === "ongoing") return t.status === "ONGOING";
-        return t.status === "COMPLETED";
+        if (filter === "upcoming") return ["DRAFT", "REGISTRATION_OPEN"].includes(t.status);
+        if (filter === "ongoing") return ["REGISTRATION_CLOSED", "IN_PROGRESS"].includes(t.status);
+        return ["COMPLETED", "CANCELLED"].includes(t.status);
     });
 
-    const onRefresh = () => {
+    const onRefresh = async () => {
         setRefreshing(true);
-        setTimeout(() => setRefreshing(false), 1000);
+        await fetchTournaments();
+        setRefreshing(false);
     };
 
     const formatDate = (dateStr: string) => {
+        if (!dateStr) return "-";
         return new Date(dateStr).toLocaleDateString("id-ID", {
             day: "numeric",
             month: "short",
@@ -70,18 +102,22 @@ export default function TournamentListScreen() {
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case "REGISTRATION": return "#10B981";
-            case "ONGOING": return Colors.primary;
+            case "REGISTRATION_OPEN": return "#10B981";
+            case "IN_PROGRESS": return Colors.primary;
             case "COMPLETED": return "#6B7280";
+            case "CANCELLED": return "#EF4444";
             default: return mutedColor;
         }
     };
 
     const getStatusLabel = (status: string) => {
         switch (status) {
-            case "REGISTRATION": return "Pendaftaran";
-            case "ONGOING": return "Berlangsung";
+            case "DRAFT": return "Draf";
+            case "REGISTRATION_OPEN": return "Pendaftaran";
+            case "REGISTRATION_CLOSED": return "Pendaftaran Tutup";
+            case "IN_PROGRESS": return "Berlangsung";
             case "COMPLETED": return "Selesai";
+            case "CANCELLED": return "Dibatalkan";
             default: return status;
         }
     };
@@ -177,7 +213,7 @@ export default function TournamentListScreen() {
                                 <View style={styles.tournamentMeta}>
                                     <MaterialIcons name="place" size={14} color={mutedColor} />
                                     <Text style={[styles.metaText, { color: mutedColor }]}>
-                                        {tournament.venue_name}, {tournament.city}
+                                        {tournament.venues?.name || "Lokasi TBD"}{tournament.venues?.city ? `, ${tournament.venues.city}` : ""}
                                     </Text>
                                 </View>
                                 <View style={styles.tournamentMeta}>

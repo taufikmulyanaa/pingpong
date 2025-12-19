@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     View,
     Text,
@@ -7,20 +7,102 @@ import {
     TouchableOpacity,
     Image,
     TextInput,
+    ActivityIndicator,
+    RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, Stack } from "expo-router";
-import { Colors, SharedStyles, ExtendedColors } from "../../src/lib/constants";
+import { Colors } from "../../src/lib/constants";
+import { supabase } from "../../src/lib/supabase";
+import { useAuthStore } from "../../src/stores/authStore";
 
-// Mock Data for History
-// Mock Data Removed
+interface MatchHistory {
+    id: string;
+    opponent: string;
+    opponentAvatar: string;
+    date: string;
+    result: "WIN" | "LOSS";
+    score: string;
+    duration: string;
+    mrChange: string;
+    location: string;
+    type: string;
+}
 
 export default function MatchHistoryScreen() {
     const router = useRouter();
-    const [filter, setFilter] = useState("ALL"); // ALL, WIN, LOSS
+    const { profile } = useAuthStore();
+    const [filter, setFilter] = useState("ALL");
     const [searchQuery, setSearchQuery] = useState("");
-    const [matches, setMatches] = useState<any[]>([]);
+    const [matches, setMatches] = useState<MatchHistory[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const fetchMatches = async () => {
+        if (!profile) return;
+
+        try {
+            // Fetch matches where user is player1 or player2
+            const { data, error } = await supabase
+                .from("matches")
+                .select(`
+                    *,
+                    player1:profiles!matches_player1_id_fkey(id, name, avatar_url),
+                    player2:profiles!matches_player2_id_fkey(id, name, avatar_url),
+                    venue:venues(name)
+                `)
+                .or(`player1_id.eq.${profile.id},player2_id.eq.${profile.id}`)
+                .eq("status", "COMPLETED")
+                .order("completed_at", { ascending: false })
+                .limit(50);
+
+            if (error) {
+                console.error("Error fetching matches:", error);
+                setMatches([]);
+            } else if (data) {
+                const processedMatches: MatchHistory[] = data.map((match: any) => {
+                    const isPlayer1 = match.player1_id === profile.id;
+                    const opponent = isPlayer1 ? match.player2 : match.player1;
+                    const won = match.winner_id === profile.id;
+                    const ratingChange = isPlayer1 ? match.player1_rating_change : match.player2_rating_change;
+
+                    return {
+                        id: match.id,
+                        opponent: opponent?.name || "Unknown",
+                        opponentAvatar: opponent?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(opponent?.name || "U")}&background=random`,
+                        date: match.completed_at ? new Date(match.completed_at).toLocaleDateString("id-ID", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                        }) : "-",
+                        result: won ? "WIN" : "LOSS",
+                        score: "3-1", // TODO: Calculate from match_sets
+                        duration: "25 min", // TODO: Calculate from started_at/completed_at
+                        mrChange: ratingChange ? (ratingChange > 0 ? `+${ratingChange}` : `${ratingChange}`) : "-",
+                        location: match.venue?.name || "Online",
+                        type: match.type,
+                    };
+                });
+                setMatches(processedMatches);
+            }
+        } catch (error) {
+            console.error("Error:", error);
+            setMatches([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchMatches();
+    }, [profile]);
+
+    const onRefresh = async () => {
+        setRefreshing(true);
+        await fetchMatches();
+        setRefreshing(false);
+    };
 
     const filteredData = matches.filter(item => {
         const matchesFilter = filter === "ALL" || item.result === filter;

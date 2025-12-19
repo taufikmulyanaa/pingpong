@@ -14,6 +14,7 @@ import { useRouter } from "expo-router";
 import { useAuthStore } from "@/stores/authStore";
 import { useMatchStore } from "@/stores/matchStore";
 import { Colors, getLevelTitle, getXpProgress } from "@/lib/constants";
+import { supabase } from "@/lib/supabase";
 
 // Helper to get greeting based on time
 const getGreeting = (): string => {
@@ -30,12 +31,28 @@ export default function HomeScreen() {
     const { pendingChallenges } = useMatchStore();
 
     const [refreshing, setRefreshing] = React.useState(false);
+    const [pendingBookings, setPendingBookings] = React.useState<any[]>([]);
+
+    const fetchPendingBookings = async () => {
+        if (!profile?.id) return;
+        const { data } = await supabase
+            .from("bookings")
+            .select("*, venue:venues!inner(owner_id, name)")
+            .eq("venue.owner_id", profile.id)
+            .eq("status", "PENDING");
+
+        if (data) setPendingBookings(data);
+    };
+
+    React.useEffect(() => {
+        fetchPendingBookings();
+    }, [profile?.id]);
 
     const onRefresh = React.useCallback(async () => {
         setRefreshing(true);
-        await fetchProfile();
+        await Promise.all([fetchProfile(), fetchPendingBookings()]);
         setRefreshing(false);
-    }, []);
+    }, [profile?.id]);
 
     const xpProgress = profile ? getXpProgress(profile.xp) : { current: 0, max: 1000, percentage: 0 };
     const levelTitle = profile ? getLevelTitle(profile.level) : "Pemula";
@@ -217,6 +234,43 @@ export default function HomeScreen() {
                         </TouchableOpacity>
                     </View>
                 </View>
+
+                {/* Booking Requests (Host) */}
+                {pendingBookings.length > 0 && (
+                    <View style={styles.section}>
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                            <Text style={[styles.sectionTitle, { color: textColor, marginBottom: 0 }]}>Permintaan Booking</Text>
+                            <View style={{ backgroundColor: "#EF4444", borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2 }}>
+                                <Text style={{ color: "#fff", fontSize: 10, fontWeight: "bold" }}>{pendingBookings.length} Baru</Text>
+                            </View>
+                        </View>
+
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 4 }}>
+                            {pendingBookings.map((b) => (
+                                <TouchableOpacity
+                                    key={b.id}
+                                    style={[styles.bookingRequestCard, { backgroundColor: cardColor, borderColor: "rgba(0,0,0,0.05)" }]}
+                                    onPress={() => router.push(`/host/${b.venue_id}` as any)}
+                                >
+                                    <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
+                                        <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.primary + "20", alignItems: "center", justifyContent: "center", marginRight: 8 }}>
+                                            <MaterialIcons name="event" size={18} color={Colors.primary} />
+                                        </View>
+                                        <Text style={[styles.bookingRequestVenue, { color: textColor }]} numberOfLines={1}>
+                                            {b.venue?.name}
+                                        </Text>
+                                    </View>
+                                    <Text style={{ fontSize: 12, color: mutedColor, marginBottom: 8 }}>
+                                        {b.booking_date} • {b.start_time.slice(0, 5)}
+                                    </Text>
+                                    <View style={{ alignSelf: "flex-start", backgroundColor: "#FEF3C7", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                                        <Text style={{ fontSize: 10, color: "#D97706", fontWeight: "bold" }}>Perlu Konfirmasi</Text>
+                                    </View>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    </View>
+                )}
 
                 {/* Active Match */}
                 <View style={styles.section}>
@@ -981,18 +1035,29 @@ const styles = StyleSheet.create({
         marginTop: 2,
     },
     rankDivider: {
-        width: 1,
         height: 40,
-        backgroundColor: "rgba(0,0,0,0.1)",
+        width: 1,
+        backgroundColor: "#E5E7EB",
     },
     rankStats: {
         flex: 1,
         flexDirection: "row",
         justifyContent: "space-around",
-        paddingLeft: 20,
     },
     rankStatItem: {
         alignItems: "center",
+        gap: 4,
+    },
+    bookingRequestCard: {
+        width: 200,
+        padding: 12,
+        borderRadius: 16,
+        borderWidth: 1,
+    },
+    bookingRequestVenue: {
+        fontSize: 14,
+        fontWeight: "bold",
+        flex: 1,
     },
     rankStatValue: {
         fontSize: 18,

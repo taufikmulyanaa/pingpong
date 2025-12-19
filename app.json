@@ -17,7 +17,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.pingponghub.app",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "PingpongHub membutuhkan akses lokasi untuk menemukan lawan dan venue terdekat."
+        "NSLocationWhenInUseUsageDescription": "PingpongHub membutuhkan akses lokasi untuk menemukan lawan dan venue terdekat.",
+        "NSCameraUsageDescription": "PingpongHub membutuhkan akses kamera untuk memindai QR Code."
       }
     },
     "android": {
@@ -57,6 +58,12 @@
           "icon": "./assets/icon.png",
           "color": "#ffffff",
           "defaultChannel": "default"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "PingpongHub membutuhkan akses kamera untuk memindai QR Code."
         }
       ]
     ],

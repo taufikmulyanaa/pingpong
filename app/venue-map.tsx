@@ -8,14 +8,17 @@ import {
     StyleSheet,
     useColorScheme,
     Dimensions,
+    Platform,
+    Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, Stack } from "expo-router";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import * as Location from "expo-location";
 import { Colors, SharedStyles, ExtendedColors } from "../src/lib/constants";
 import { supabase } from "../src/lib/supabase";
+import { MapComponent } from "../src/components/MapComponent";
+import { AddVenueModal } from "../src/components/AddVenueModal";
 
 const { width, height } = Dimensions.get("window");
 
@@ -40,7 +43,7 @@ export default function VenueMapScreen() {
     const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
     const [venues, setVenues] = useState<Venue[]>([]);
     const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-    const mapRef = React.useRef<MapView>(null);
+    const [showAddModal, setShowAddModal] = useState(false);
 
     // Get user location
     useEffect(() => {
@@ -87,12 +90,8 @@ export default function VenueMapScreen() {
         return `Rp ${price?.toLocaleString("id-ID") || 0}/jam`;
     };
 
-    // Default region (Jakarta)
-    const defaultRegion = {
-        latitude: userLocation?.latitude || -6.2,
-        longitude: userLocation?.longitude || 106.816666,
-        latitudeDelta: 0.15,
-        longitudeDelta: 0.15,
+    const handleVenuePress = (venue: any) => {
+        setSelectedVenue(venue);
     };
 
     return (
@@ -109,36 +108,23 @@ export default function VenueMapScreen() {
                         <MaterialIcons name="arrow-back" size={24} color="#fff" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Peta Venue</Text>
-                    <View style={{ width: 40 }} />
+                    <TouchableOpacity
+                        style={styles.headerBtn}
+                        onPress={() => setShowAddModal(true)}
+                    >
+                        <MaterialIcons name="add" size={24} color="#fff" />
+                    </TouchableOpacity>
                 </View>
 
-                {/* Real Map */}
+                {/* Map - uses platform-specific MapComponent */}
                 <View style={styles.mapContainer}>
-                    <MapView
-                        ref={mapRef}
-                        style={styles.mapView}
-                        provider={PROVIDER_GOOGLE}
-                        initialRegion={defaultRegion}
-                        showsUserLocation={true}
-                        showsMyLocationButton={true}
-                    >
-                        {venues.map((venue) => (
-                            <Marker
-                                key={venue.id}
-                                coordinate={{
-                                    latitude: venue.latitude || -6.2,
-                                    longitude: venue.longitude || 106.816666,
-                                }}
-                                title={venue.name}
-                                description={venue.address}
-                                onPress={() => setSelectedVenue(venue)}
-                            >
-                                <View style={[styles.venueMarker, { backgroundColor: selectedVenue?.id === venue.id ? Colors.primary : "#EF4444" }]}>
-                                    <MaterialIcons name="sports-tennis" size={16} color="#fff" />
-                                </View>
-                            </Marker>
-                        ))}
-                    </MapView>
+                    <MapComponent
+                        userLocation={userLocation}
+                        venues={venues}
+                        onVenuePress={handleVenuePress}
+                        selectedVenueId={selectedVenue?.id}
+                        showPlayersMode={false}
+                    />
                 </View>
 
                 {/* Venue List */}
@@ -229,7 +215,25 @@ export default function VenueMapScreen() {
                         </TouchableOpacity>
                     </View>
                 )}
-            </SafeAreaView>
+            </SafeAreaView >
+
+            {/* Add Venue Modal */}
+            <AddVenueModal
+                visible={showAddModal}
+                onClose={() => setShowAddModal(false)}
+                onSuccess={() => {
+                    // Refresh venues list
+                    const fetchVenues = async () => {
+                        const { data } = await supabase
+                            .from("venues")
+                            .select("*")
+                            .eq("is_active", true)
+                            .limit(50);
+                        if (data) setVenues(data as Venue[]);
+                    };
+                    fetchVenues();
+                }}
+            />
         </>
     );
 }

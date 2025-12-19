@@ -14,14 +14,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import Slider from "@react-native-community/slider";
-import MapView, { Marker, Circle, PROVIDER_GOOGLE } from "react-native-maps";
 import * as Location from "expo-location";
 import { Colors, GripStyles, PlayStyles, SharedStyles, ExtendedColors, BorderRadius } from "@/lib/constants";
 import { supabase } from "@/lib/supabase";
 import { Profile } from "@/types/database";
 import { useAuthStore } from "@/stores/authStore";
+import { MapComponent } from "@/components/MapComponent";
 
-// Real Map View component
+// Real Map View wrapper - uses platform-specific MapComponent
 const RealMapView = ({
     userLocation,
     players,
@@ -33,69 +33,15 @@ const RealMapView = ({
     distance: number;
     onPlayerPress: (playerId: string) => void;
 }) => {
-    const mapRef = React.useRef<MapView>(null);
-
-    // Default to Jakarta if no location
-    const defaultRegion = {
-        latitude: userLocation?.latitude || -6.2,
-        longitude: userLocation?.longitude || 106.816666,
-        latitudeDelta: 0.1,
-        longitudeDelta: 0.1,
-    };
-
     return (
         <View style={styles.radarContainer}>
-            <MapView
-                ref={mapRef}
-                style={styles.mapView}
-                provider={PROVIDER_GOOGLE}
-                initialRegion={defaultRegion}
-                showsUserLocation={true}
-                showsMyLocationButton={true}
-            >
-                {/* Distance radius circle */}
-                {userLocation && (
-                    <Circle
-                        center={userLocation}
-                        radius={distance * 1000} // km to meters
-                        strokeColor="rgba(65, 105, 225, 0.5)"
-                        fillColor="rgba(65, 105, 225, 0.1)"
-                        strokeWidth={2}
-                    />
-                )}
-
-                {/* Player markers */}
-                {players.map((player) => {
-                    // Use player's lat/lng if available, else mock position
-                    const playerLat = player.latitude || (userLocation?.latitude || -6.2) + (Math.random() - 0.5) * 0.05;
-                    const playerLng = player.longitude || (userLocation?.longitude || 106.816666) + (Math.random() - 0.5) * 0.05;
-
-                    return (
-                        <Marker
-                            key={player.id}
-                            coordinate={{
-                                latitude: playerLat,
-                                longitude: playerLng,
-                            }}
-                            title={player.name || "Player"}
-                            description={`MR ${player.rating_mr}`}
-                            onPress={() => onPlayerPress(player.id!)}
-                        >
-                            <View style={[styles.playerMarker, { backgroundColor: player.is_online ? "#10B981" : Colors.primary }]}>
-                                <MaterialIcons name="person" size={16} color="#fff" />
-                            </View>
-                        </Marker>
-                    );
-                })}
-            </MapView>
-
-            {/* Scanning indicator overlay */}
-            {players.length === 0 && (
-                <View style={styles.scanningBadge}>
-                    <MaterialIcons name="sync" size={14} color={Colors.primary} />
-                    <Text style={styles.scanningText}>Memindai area sekitar...</Text>
-                </View>
-            )}
+            <MapComponent
+                userLocation={userLocation}
+                players={players}
+                distance={distance}
+                onPlayerPress={onPlayerPress}
+                showPlayersMode={true}
+            />
         </View>
     );
 };
@@ -813,5 +759,31 @@ const styles = StyleSheet.create({
         fontSize: 14,
         textAlign: "center",
         paddingHorizontal: 20,
+    },
+    webMapFallback: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: "rgba(0,16,100,0.05)",
+        borderRadius: 16,
+        padding: 20,
+    },
+    webMapTitle: {
+        fontSize: 18,
+        fontWeight: "bold",
+        color: Colors.darkblue,
+        marginTop: 12,
+    },
+    webMapText: {
+        fontSize: 14,
+        color: Colors.muted,
+        marginTop: 8,
+        textAlign: "center",
+    },
+    webMapHint: {
+        fontSize: 12,
+        color: Colors.primary,
+        marginTop: 4,
+        fontWeight: "500",
     },
 });

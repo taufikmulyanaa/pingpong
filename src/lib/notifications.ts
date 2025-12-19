@@ -1,7 +1,6 @@
 // Push Notifications Utility
 // Expo Push setup, token management, and notification handlers
 
-import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import { Platform } from "react-native";
 import { supabase } from "./supabase";
@@ -20,21 +19,34 @@ export type NotificationType =
     | "LEVEL_UP"
     | "GENERAL";
 
-// Configure notification behavior
-Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-        shouldShowBanner: true,
-        shouldShowList: true,
-    }),
-});
+// Conditionally import expo-notifications only on native platforms
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let Notifications: any = null;
+
+if (Platform.OS !== 'web') {
+    Notifications = require("expo-notifications");
+
+    // Configure notification behavior (only on native)
+    Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+            shouldShowAlert: true,
+            shouldPlaySound: true,
+            shouldSetBadge: true,
+            shouldShowBanner: true,
+            shouldShowList: true,
+        }),
+    });
+}
 
 /**
  * Register for push notifications and get token
  */
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
+    // Skip on web
+    if (Platform.OS === 'web' || !Notifications) {
+        return null;
+    }
+
     let token: string | null = null;
 
     // Must be physical device
@@ -130,9 +142,15 @@ export async function removePushToken(userId: string): Promise<void> {
 export async function scheduleLocalNotification(
     title: string,
     body: string,
-    trigger: Notifications.NotificationTriggerInput,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    trigger: any,
     data?: Record<string, unknown>
-): Promise<string> {
+): Promise<string | null> {
+    // Skip on web
+    if (Platform.OS === 'web' || !Notifications) {
+        return null;
+    }
+
     return await Notifications.scheduleNotificationAsync({
         content: {
             title,
@@ -152,6 +170,11 @@ export async function scheduleMatchReminder(
     opponentName: string,
     scheduledTime: Date
 ): Promise<string | null> {
+    // Skip on web
+    if (Platform.OS === 'web' || !Notifications) {
+        return null;
+    }
+
     const reminderTime = new Date(scheduledTime.getTime() - 30 * 60 * 1000);
 
     if (reminderTime <= new Date()) {
@@ -177,6 +200,10 @@ export async function scheduleMatchReminder(
  * Cancel a scheduled notification
  */
 export async function cancelNotification(notificationId: string): Promise<void> {
+    // Skip on web
+    if (Platform.OS === 'web' || !Notifications) {
+        return;
+    }
     await Notifications.cancelScheduledNotificationAsync(notificationId);
 }
 
@@ -184,6 +211,10 @@ export async function cancelNotification(notificationId: string): Promise<void> 
  * Cancel all scheduled notifications
  */
 export async function cancelAllNotifications(): Promise<void> {
+    // Skip on web
+    if (Platform.OS === 'web' || !Notifications) {
+        return;
+    }
     await Notifications.cancelAllScheduledNotificationsAsync();
 }
 
@@ -265,5 +296,9 @@ export function getNotificationContent(
  * Set badge count (iOS)
  */
 export async function setBadgeCount(count: number): Promise<void> {
+    // Skip on web
+    if (Platform.OS === 'web' || !Notifications) {
+        return;
+    }
     await Notifications.setBadgeCountAsync(count);
 }

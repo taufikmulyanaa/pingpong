@@ -3,7 +3,6 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Platform } from "react-native";
-import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 import { useAuthStore } from "../stores/authStore";
 import {
@@ -13,6 +12,13 @@ import {
     setBadgeCount,
     NotificationType,
 } from "../lib/notifications";
+
+// Conditionally import expo-notifications only on native platforms
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let Notifications: any = null;
+if (Platform.OS !== 'web') {
+    Notifications = require("expo-notifications");
+}
 
 interface NotificationData {
     type: NotificationType;
@@ -25,15 +31,18 @@ export function usePushNotifications() {
     const user = useAuthStore((state) => state.user);
     const router = useRouter();
     const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
-    const [notification, setNotification] = useState<Notifications.Notification | null>(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [notification, setNotification] = useState<any>(null);
 
-    const notificationListener = useRef<Notifications.EventSubscription | null>(null);
-    const responseListener = useRef<Notifications.EventSubscription | null>(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const notificationListener = useRef<any>(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const responseListener = useRef<any>(null);
 
     // Register for push notifications
     useEffect(() => {
         // Skip on web
-        if (Platform.OS === "web") return;
+        if (Platform.OS === "web" || !Notifications) return;
         if (!user) return;
 
         const registerPush = async () => {
@@ -51,15 +60,15 @@ export function usePushNotifications() {
     // Setup notification listeners
     useEffect(() => {
         // Skip on web
-        if (Platform.OS === "web") return;
+        if (Platform.OS === "web" || !Notifications) return;
 
         // Foreground notification received
-        notificationListener.current = Notifications.addNotificationReceivedListener((notif) => {
+        notificationListener.current = Notifications.addNotificationReceivedListener((notif: any) => {
             setNotification(notif);
         });
 
         // User interacted with notification
-        responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+        responseListener.current = Notifications.addNotificationResponseReceivedListener((response: any) => {
             const data = response.notification.request.content.data as NotificationData;
             handleNotificationTap(data);
         });

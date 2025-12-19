@@ -8,11 +8,16 @@ import {
     StyleSheet,
     Image,
     Switch,
+    Alert,
+    ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, Stack } from "expo-router";
-import { Colors, SharedStyles, ExtendedColors } from "../../src/lib/constants";
+import * as ImagePicker from "expo-image-picker";
+import { Colors } from "../../src/lib/constants";
+import { supabase } from "../../src/lib/supabase";
+import { useAuthStore } from "../../src/stores/authStore";
 
 type TournamentFormat = "KNOCKOUT" | "HALF_COMP" | "ROUND_ROBIN";
 type Category = "SINGLES" | "DOUBLES" | "U17" | "VETERAN45";
@@ -32,6 +37,8 @@ const CATEGORIES: { key: Category; label: string; icon: string }[] = [
 
 export default function CreateCompetitionScreen() {
     const router = useRouter();
+    const { profile } = useAuthStore();
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Form state
     const [bannerUri, setBannerUri] = useState<string | null>(null);
@@ -60,18 +67,112 @@ export default function CreateCompetitionScreen() {
         );
     };
 
-    const handleBannerUpload = () => {
-        setBannerUri("https://placehold.co/600x200/001064/FFEB00?text=Banner+Kompetisi");
+    const handleBannerUpload = async () => {
+        try {
+            const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (!permissionResult.granted) {
+                Alert.alert("Izin Diperlukan", "Izinkan akses galeri untuk memilih foto");
+                return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [16, 9],
+                quality: 0.8,
+            });
+
+            if (!result.canceled && result.assets[0]) {
+                setBannerUri(result.assets[0].uri);
+            }
+        } catch (error) {
+            console.error("Image picker error:", error);
+            Alert.alert("Error", "Gagal memilih foto");
+        }
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!name || !location || !date) {
-            alert("Nama, lokasi, dan tanggal wajib diisi!");
+            Alert.alert("Validasi", "Nama, lokasi, dan tanggal wajib diisi!");
             return;
         }
 
-        alert(`Kompetisi berhasil dibuat!\n\nNama: ${name}\nFormat: ${format}\nTanggal: ${date}`);
-        router.back();
+        if (!profile) {
+            Alert.alert("Error", "Anda harus login untuk membuat turnamen");
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            // Parse date from DD/MM/YYYY to ISO format
+            const dateParts = date.split("/");
+            let startDate = new Date().toISOString();
+            if (dateParts.length === 3) {
+                startDate = new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`).toISOString();
+            }
+
+            // Generate slug
+            const slug = name.toLowerCase()
+                .replace(/[^a-z0-9\s-]/g, '')
+                .replace(/\s+/g, '-')
+                .substring(0, 50) + '-' + Date.now().toString(36);
+
+            // Map format to database enum
+            const formatMap: Record<string, string> = {
+                "KNOCKOUT": "SINGLE_ELIMINATION",
+                "HALF_COMP": "ROUND_ROBIN",
+                "ROUND_ROBIN": "ROUND_ROBIN",
+            };
+
+            // Map category to database enum
+            const categoryMap: Record<string, string> = {
+                "SINGLES": "OPEN",
+                "DOUBLES": "DOUBLES",
+                "U17": "U17",
+                "VETERAN45": "VETERAN_40",
+            };
+
+            const tournamentData = {
+                organizer_id: profile.id,
+                name: name.trim(),
+                slug: slug,
+                description: description.trim() || null,
+                rules: rules.trim() || null,
+                banner_url: bannerUri,
+                format: formatMap[format] || "SINGLE_ELIMINATION",
+                category: categoryMap[selectedCategories[0]] || "OPEN",
+                max_participants: 16,
+                registration_fee: isFree ? 0 : parseInt(registrationFee) || 0,
+                prize_pool: 0,
+                registration_start: new Date().toISOString(),
+                registration_end: startDate,
+                start_date: startDate,
+                status: "REGISTRATION_OPEN",
+                is_ranked: publishToLeaderboard,
+            };
+
+            const { data, error } = await supabase
+                .from("tournaments")
+                .insert([tournamentData] as any)
+                .select()
+                .single();
+
+            if (error) {
+                console.error("Error creating tournament:", error);
+                Alert.alert("Error", "Gagal membuat turnamen. Silakan coba lagi.");
+            } else {
+                Alert.alert(
+                    "Berhasil!",
+                    `Turnamen "${name}" berhasil dibuat!`,
+                    [{ text: "OK", onPress: () => router.back() }]
+                );
+            }
+        } catch (error) {
+            console.error("Error:", error);
+            Alert.alert("Error", "Terjadi kesalahan. Silakan coba lagi.");
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (

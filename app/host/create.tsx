@@ -9,11 +9,16 @@ import {
     Image,
     Switch,
     Modal,
+    Alert,
+    ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, Stack } from "expo-router";
-import { Colors, Facilities, SharedStyles, ExtendedColors } from "../../src/lib/constants";
+import * as ImagePicker from "expo-image-picker";
+import { Colors, Facilities } from "../../src/lib/constants";
+import { supabase } from "../../src/lib/supabase";
+import { useAuthStore } from "../../src/stores/authStore";
 
 interface Schedule {
     day: string;
@@ -26,11 +31,14 @@ const DAYS = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
 
 export default function HostTableScreen() {
     const router = useRouter();
+    const { profile } = useAuthStore();
 
     // Form state
     const [photoUri, setPhotoUri] = useState<string | null>(null);
     const [name, setName] = useState("");
     const [address, setAddress] = useState("");
+    const [city, setCity] = useState("");
+    const [pricePerHour, setPricePerHour] = useState("");
     const [tableType, setTableType] = useState<"INDOOR" | "OUTDOOR">("INDOOR");
     const [tableCount, setTableCount] = useState("1");
     const [selectedFacilities, setSelectedFacilities] = useState<string[]>([]);
@@ -40,6 +48,7 @@ export default function HostTableScreen() {
     const [privacy, setPrivacy] = useState<"PUBLIC" | "FRIENDS" | "PRIVATE">("PUBLIC");
     const [invitedFriends, setInvitedFriends] = useState<string[]>([]);
     const [showFriendsModal, setShowFriendsModal] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Light mode colors
     const bgColor = Colors.background;
@@ -62,38 +71,189 @@ export default function HostTableScreen() {
         });
     };
 
-    const handlePhotoUpload = () => {
-        // Simulate photo upload with placeholder
-        setPhotoUri("https://placehold.co/400x200/4169E1/FFEB00?text=Foto+Lokasi");
+    const handlePhotoUpload = async () => {
+        try {
+            const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (!permissionResult.granted) {
+                Alert.alert("Izin Diperlukan", "Izinkan akses galeri untuk memilih foto");
+                return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [16, 9],
+                quality: 0.8,
+            });
+
+            if (!result.canceled && result.assets[0]) {
+                setPhotoUri(result.assets[0].uri);
+            }
+        } catch (error) {
+            console.error("Image picker error:", error);
+            Alert.alert("Error", "Gagal memilih foto");
+        }
     };
 
-    const handleSubmit = () => {
-        // Validate
-        if (!name || !address) {
-            alert("Nama dan alamat wajib diisi!");
+    const handleSubmit = async () => {
+        if (!name || !address || !city) {
+            Alert.alert("Validasi", "Nama, alamat, dan kota wajib diisi!");
             return;
         }
 
-        // Mock submit
-        alert(`Meja berhasil dibuat!\n\nNama: ${name}\nAlamat: ${address}\nTipe: ${tableType}\nJumlah Meja: ${tableCount}`);
-        router.back();
+        if (!profile) {
+            Alert.alert("Error", "Anda harus login untuk membuat venue");
+            return;
+        }
+
+        setIsSubmitting(true);
+
+        try {
+            // Generate slug from name
+            const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+            // Build opening hours from schedule
+            const openingHours: any = {};
+            schedule.forEach(s => {
+                if (s.enabled) {
+                    openingHours[s.day] = { open: s.startTime, close: s.endTime };
+                }
+            });
+            // Upload image to Supabase Storage if we have one
+            let imageUrls: string[] = [];
+            if (photoUri) {
+                try {
+                    console.log("Uploading image to Supabase Storage...");
+
+                    // For web, we need to fetch the blob and upload
+                    const response = await fetch(photoUri);
+                    const blob = await response.blob();
+
+                    // Generate unique filename - use user ID as folder  
+                    const fileExt = blob.type.split("/")[1] || "jpg";
+                    const fileName = `${profile.id}/${Date.now()}.${fileExt}`;
+
+                    // Upload to Supabase Storage (venue-images bucket)
+                    const { data: uploadData, error: uploadError } = await supabase.storage
+                        .from("venue-images")
+                        .upload(fileName, blob, {
+                            contentType: blob.type,
+                            upsert: false,
+                        });
+
+                    if (uploadError) {
+                        console.error("Upload error:", uploadError);
+                        // Continue without image if upload fails
+                    } else {
+                        // Get public URL
+                        const { data: urlData } = supabase.storage
+                            .from("venue-images")
+                            .getPublicUrl(fileName);
+
+                        if (urlData?.publicUrl) {
+                            imageUrls = [urlData.publicUrl];
+                            console.log("Image uploaded:", urlData.publicUrl);
+                        }
+                    }
+                } catch (uploadErr) {
+                    console.error("Error uploading image:", uploadErr);
+                    // Continue without image if upload fails
+                }
+            }
+
+            const venueData = {
+                name,
+                slug: `${slug}-${Date.now()}`,
+                address,
+                city,
+                owner_id: profile.id,
+                price_per_hour: parseInt(pricePerHour) || 0,
+                facilities: selectedFacilities,
+                opening_hours: openingHours,
+                is_active: true,
+                images: imageUrls,
+                latitude: 0,
+                longitude: 0,
+                table_count: parseInt(tableCount) || 1,
+            };
+
+            console.log("Creating venue with data:", venueData);
+            console.log("Profile ID:", profile.id);
+
+            // Check auth session
+            const { data: session } = await supabase.auth.getSession();
+            console.log("Auth session:", session?.session?.user?.id || "NO SESSION");
+
+            if (!session?.session) {
+                Alert.alert("Error", "Sesi login tidak ditemukan. Silakan login ulang.");
+                setIsSubmitting(false);
+                return;
+            }
+
+            console.log("Starting insert...");
+
+            // Add timeout to detect hanging requests
+            const insertPromise = (supabase.from("venues") as any)
+                .insert(venueData)
+                .select();
+
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("Request timeout after 10 seconds")), 10000)
+            );
+
+            const { data, error } = await Promise.race([insertPromise, timeoutPromise]) as any;
+
+            console.log("Insert completed!");
+            console.log("Insert result - data:", data, "error:", error);
+
+            if (error) {
+                console.error("Error creating venue:", error);
+                Alert.alert("Error", `Gagal membuat venue: ${error.message}\n\nCode: ${error.code}\n\nDetails: ${JSON.stringify(error.details || {})}`);
+            } else {
+                Alert.alert("Berhasil!", `Venue "${name}" berhasil dibuat!`, [
+                    {
+                        text: "OK",
+                        onPress: () => {
+                            if (router.canGoBack()) {
+                                router.back();
+                            } else {
+                                router.replace("/host");
+                            }
+                        }
+                    }
+                ]);
+            }
+        } catch (error: any) {
+            console.error("Submit error:", error);
+            Alert.alert("Error", `Terjadi kesalahan: ${error?.message || "Unknown error"}`);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     // Mock friends list
-    // Mock friends list removed
     const mockFriends: any[] = [];
 
     return (
         <>
             <Stack.Screen
                 options={{
-                    headerShown: true,
-                    headerTitle: "Host Meja Baru",
-                    headerStyle: { backgroundColor: bgColor },
-                    headerTintColor: textColor,
+                    headerShown: false,
                 }}
             />
-            <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={["bottom"]}>
+            <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={["top", "bottom"]}>
+                {/* Custom Header */}
+                <View style={[styles.header, { borderBottomColor: borderColor }]}>
+                    <TouchableOpacity
+                        onPress={() => router.canGoBack() ? router.back() : router.replace("/host")}
+                        style={styles.backButton}
+                    >
+                        <MaterialIcons name="arrow-back" size={24} color={textColor} />
+                    </TouchableOpacity>
+                    <Text style={[styles.headerTitle, { color: textColor }]}>Host Meja Baru</Text>
+                    <View style={{ width: 40 }} />
+                </View>
+
                 <ScrollView
                     style={styles.scrollView}
                     contentContainerStyle={styles.content}
@@ -138,12 +298,35 @@ export default function HostTableScreen() {
                             <Text style={[styles.label, { color: textColor }]}>Alamat Lengkap *</Text>
                             <TextInput
                                 style={[styles.input, styles.textArea, { backgroundColor: cardColor, color: textColor, borderColor }]}
-                                placeholder="Jl. Contoh No. 123, Kota"
+                                placeholder="Jl. Contoh No. 123"
                                 placeholderTextColor={mutedColor}
                                 value={address}
                                 onChangeText={setAddress}
                                 multiline
                                 numberOfLines={3}
+                            />
+                        </View>
+
+                        <View style={styles.inputGroup}>
+                            <Text style={[styles.label, { color: textColor }]}>Kota *</Text>
+                            <TextInput
+                                style={[styles.input, { backgroundColor: cardColor, color: textColor, borderColor }]}
+                                placeholder="Jakarta Selatan"
+                                placeholderTextColor={mutedColor}
+                                value={city}
+                                onChangeText={setCity}
+                            />
+                        </View>
+
+                        <View style={styles.inputGroup}>
+                            <Text style={[styles.label, { color: textColor }]}>Harga per Jam (Rp)</Text>
+                            <TextInput
+                                style={[styles.input, { backgroundColor: cardColor, color: textColor, borderColor }]}
+                                placeholder="50000"
+                                placeholderTextColor={mutedColor}
+                                value={pricePerHour}
+                                onChangeText={setPricePerHour}
+                                keyboardType="numeric"
                             />
                         </View>
 
@@ -387,6 +570,9 @@ export default function HostTableScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
+    header: { flexDirection: "row", alignItems: "center", paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1 },
+    headerTitle: { flex: 1, fontSize: 18, fontWeight: "bold", textAlign: "center" },
+    backButton: { width: 40, height: 40, justifyContent: "center", alignItems: "flex-start" },
     scrollView: { flex: 1 },
     content: { padding: 20 },
     section: { marginBottom: 24 },

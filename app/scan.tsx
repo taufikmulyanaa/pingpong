@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
     View,
     Text,
@@ -7,16 +7,20 @@ import {
     TouchableOpacity,
     Alert,
     ActivityIndicator,
+    Platform,
+    Linking,
+    Button,
+    ScrollView,
+    Modal,
+    TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, Stack } from "expo-router";
+import { CameraView, useCameraPermissions, BarcodeScanningResult } from "expo-camera";
 import { Colors, SharedStyles, ExtendedColors } from "../src/lib/constants";
 import { supabase } from "../src/lib/supabase";
 import { useAuthStore } from "../src/stores/authStore";
-
-// Note: For actual QR scanning, you would need to install expo-camera or expo-barcode-scanner
-// This is a placeholder screen that simulates the scan flow
 
 export default function ScanQRScreen() {
     const router = useRouter();
@@ -24,41 +28,365 @@ export default function ScanQRScreen() {
     const isDark = colorScheme === "dark";
     const { profile } = useAuthStore();
 
+    const [permission, requestPermission] = useCameraPermissions();
     const [isScanning, setIsScanning] = useState(false);
-    const [scanResult, setScanResult] = useState<string | null>(null);
+    const [scanned, setScanned] = useState(false);
 
     const bgColor = Colors.background;
     const cardColor = Colors.surface;
     const textColor = Colors.text;
     const mutedColor = Colors.muted;
 
-    const handleSimulateScan = async (type: "venue" | "match") => {
+    const [showScoreModal, setShowScoreModal] = useState(false);
+    const [scannedOpponent, setScannedOpponent] = useState<any>(null);
+    const [matchScores, setMatchScores] = useState<{ me: string; opp: string }[]>(Array(5).fill({ me: "", opp: "" }));
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+    // Live Scorer State
+    const [activeSetIndex, setActiveSetIndex] = useState(0);
+    const [currentPointMe, setCurrentPointMe] = useState(0);
+    const [currentPointOpp, setCurrentPointOpp] = useState(0);
+
+    const activeSetWinner = useMemo(() => {
+        if (currentPointMe >= 11 && currentPointMe - currentPointOpp >= 2) return 'me';
+        if (currentPointOpp >= 11 && currentPointOpp - currentPointMe >= 2) return 'opp';
+        return null;
+    }, [currentPointMe, currentPointOpp]);
+
+    // Handle Barcode Scanned
+    const handleBarCodeScanned = ({ type, data }: BarcodeScanningResult) => {
+        if (scanned || isScanning) return;
+
+        setScanned(true);
         setIsScanning(true);
 
-        // Simulate scanning delay
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        console.log(`Bar code with type ${type} and data ${data} has been scanned!`);
 
-        if (type === "venue") {
-            // Simulate venue check-in
-            Alert.alert(
-                "Check-in Berhasil! ✅",
-                "Anda telah check-in di GOR Bulungan.\n\nSelamat bermain!",
-                [{ text: "OK", onPress: () => router.back() }]
-            );
-        } else {
-            // Simulate match confirmation
-            Alert.alert(
-                "Pertandingan Dikonfirmasi! 🏓",
-                "Pertandingan dengan Budi Santoso telah dikonfirmasi.\n\nSemoga menang!",
-                [
-                    { text: "Mulai Scoring", onPress: () => router.push({ pathname: "/match/[id]", params: { id: "demo-match" } }) },
-                    { text: "Nanti", style: "cancel" },
-                ]
-            );
+        try {
+            if (data.startsWith("v:")) {
+                const venueId = data.split(":")[1];
+                handleVenueCheckIn(venueId);
+            } else if (data.startsWith("u:")) {
+                const userId = data.split(":")[1];
+                handleUserScan(userId);
+            } else if (data.startsWith("m:")) {
+                const matchId = data.split(":")[1];
+                handleMatchConfirmation(matchId);
+            } else if (data.startsWith("t:")) {
+                const tournamentId = data.split(":")[1];
+                handleTournamentJoin(tournamentId);
+            } else {
+                Alert.alert(
+                    "QR Code Tidak Dikenali",
+                    `Data: ${data}\nQR Code ini tidak dikenali.`,
+                    [{ text: "Scan Lagi", onPress: resetScan }]
+                );
+            }
+        } catch (error) {
+            Alert.alert("Error", "Gagal memproses QR Code.", [{ text: "Scan Lagi", onPress: resetScan }]);
         }
+    };
 
+    const resetScan = () => {
+        setScanned(false);
         setIsScanning(false);
     };
+
+    // Handler Functions
+    const handleVenueCheckIn = async (venueId: string) => {
+        if (!profile) {
+            Alert.alert("Error", "Anda harus login untuk check-in");
+            return;
+        }
+
+        try {
+            // Verify venue exists
+            const { data: venue, error: venueError } = await supabase
+                .from("venues")
+                .select("name, city")
+                .eq("id", venueId)
+                .single();
+
+            if (venueError || !venue) {
+                Alert.alert("Venue Tidak Ditemukan", "QR Code venue ini tidak valid.", [
+                    { text: "Scan Lagi", onPress: resetScan },
+                ]);
+                return;
+            }
+
+            // Create check-in record (using a generic table or we'd need a check_ins table)
+            // For now, just update user's last location
+            await (supabase.from("profiles") as any)
+                .update({
+                    last_venue_id: venueId,
+                    last_check_in: new Date().toISOString(),
+                })
+                .eq("id", profile.id);
+
+            Alert.alert(
+                "Check-in Berhasil! ✅",
+                `Anda berhasil check-in di ${(venue as any).name}, ${(venue as any).city}`,
+                [{ text: "OK", onPress: () => router.back() }]
+            );
+        } catch (error) {
+            console.error("Check-in error:", error);
+            Alert.alert("Error", "Gagal melakukan check-in. Silakan coba lagi.", [
+                { text: "OK", onPress: resetScan },
+            ]);
+        }
+    };
+
+    const handleMatchConfirmation = async (matchId: string) => {
+        try {
+            // Verify match exists and is valid
+            const { data: match, error } = await supabase
+                .from("matches")
+                .select("*, player1:profiles!player1_id(name), player2:profiles!player2_id(name)")
+                .eq("id", matchId)
+                .single();
+
+            if (error || !match) {
+                Alert.alert("Match Tidak Ditemukan", "QR Code match ini tidak valid.", [
+                    { text: "Scan Lagi", onPress: resetScan },
+                ]);
+                return;
+            }
+
+            const player1Name = (match as any).player1?.name || "Player 1";
+            const player2Name = (match as any).player2?.name || "Player 2";
+
+            Alert.alert(
+                "Konfirmasi Match 🏓",
+                `${player1Name} vs ${player2Name}\nStatus: ${(match as any).status}\n\nBuka detail match?`,
+                [
+                    { text: "Batal", style: "cancel", onPress: resetScan },
+                    { text: "Buka", onPress: () => router.push({ pathname: "/match/[id]", params: { id: matchId } }) },
+                ]
+            );
+        } catch (error) {
+            Alert.alert("Error", "Gagal memverifikasi match.", [{ text: "OK", onPress: resetScan }]);
+        }
+    };
+
+    const handleTournamentJoin = async (tournamentId: string) => {
+        try {
+            // Verify tournament exists
+            const { data: tournament, error } = await supabase
+                .from("tournaments")
+                .select("name, status, current_participants, max_participants")
+                .eq("id", tournamentId)
+                .single();
+
+            if (error || !tournament) {
+                Alert.alert("Turnamen Tidak Ditemukan", "QR Code turnamen ini tidak valid.", [
+                    { text: "Scan Lagi", onPress: resetScan },
+                ]);
+                return;
+            }
+
+            Alert.alert(
+                "Turnamen Ditemukan 🏆",
+                `${(tournament as any).name}\nPeserta: ${(tournament as any).current_participants}/${(tournament as any).max_participants}\nStatus: ${(tournament as any).status}`,
+                [
+                    { text: "Batal", style: "cancel", onPress: resetScan },
+                    { text: "Buka", onPress: () => router.push({ pathname: "/tournament/[id]", params: { id: tournamentId } }) },
+                ]
+            );
+        } catch (error) {
+            Alert.alert("Error", "Gagal memverifikasi turnamen.", [{ text: "OK", onPress: resetScan }]);
+        }
+    };
+
+    const handleUserScan = async (userId: string) => {
+        if (!profile) return;
+        try {
+            const { data: user, error } = await supabase
+                .from("profiles")
+                .select("id, name, avatar_url, rating_mr")
+                .eq("id", userId)
+                .single();
+
+            if (error || !user) {
+                Alert.alert("User Tidak Ditemukan", "QR Code user tidak valid.", [{ text: "OK", onPress: resetScan }]);
+                return;
+            }
+
+            setScannedOpponent(user);
+            setShowScoreModal(true);
+        } catch (error) {
+            Alert.alert("Error", "Gagal memverifikasi user.", [{ text: "OK", onPress: resetScan }]);
+        }
+    };
+
+    const handleScoreChange = (setIdx: number, player: 'me' | 'opp', value: string) => {
+        const newScores = [...matchScores];
+        newScores[setIdx] = { ...newScores[setIdx], [player]: value };
+        setMatchScores(newScores);
+    };
+
+    const handleSubmitMatch = async () => {
+        if (!profile || !scannedOpponent) return;
+
+        setIsSubmitting(true);
+        try {
+            // Calculate winner
+            let mySets = 0;
+            let oppSets = 0;
+            const validSets = matchScores.filter(s => s.me && s.opp);
+
+            if (validSets.length === 0) {
+                Alert.alert("Error", "Masukkan setidaknya skor 1 set");
+                setIsSubmitting(false);
+                return;
+            }
+
+            validSets.forEach(s => {
+                const m = parseInt(s.me);
+                const o = parseInt(s.opp);
+                if (m > o) mySets++;
+                else if (o > m) oppSets++;
+            });
+
+            const winnerId = mySets > oppSets ? profile.id : scannedOpponent.id;
+            const scoreString = validSets.map(s => `${s.me}-${s.opp}`).join(", ");
+            const status = "COMPLETED";
+
+            // Insert Match
+            const { data, error } = await supabase
+                .from("matches")
+                .insert({
+                    player1_id: profile.id,
+                    player2_id: scannedOpponent.id,
+                    winner_id: winnerId,
+                    score: scoreString,
+                    status: status,
+                    match_date: new Date().toISOString(),
+                    type: "RANKED" // Changed to RANKED to enable stats/streak updates
+                } as any)
+                .select();
+
+            if (error) throw error;
+
+            // Call ELO Calculation RPC to update streaks, ratings, XP
+            if (data && data[0]) {
+                await (supabase as any).rpc('calculate_elo_rating', {
+                    p_match_id: (data as any)[0].id,
+                    p_winner_id: winnerId
+                });
+            }
+
+            Alert.alert("Sukses", `Match Disimpan!\nPemenang: ${mySets > oppSets ? "Anda" : scannedOpponent.name}\nSkor: ${scoreString}`, [
+                {
+                    text: "OK", onPress: () => {
+                        setShowScoreModal(false);
+                        router.push("/" as any);
+                    }
+                }
+            ]);
+
+        } catch (error) {
+            console.error(error);
+            Alert.alert("Error", "Gagal menyimpan match.");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleCloseModal = () => {
+        const hasData = matchScores.some(s => s.me !== "" || s.opp !== "");
+        if (hasData) {
+            setShowConfirmModal(true);
+        } else {
+            setShowScoreModal(false);
+        }
+    };
+
+    // Live Scorer Logic
+    const handlePointChange = (player: 'me' | 'opp', delta: number) => {
+        // if (activeSetWinner && delta > 0) return; // Optional lock
+        if (player === 'me') {
+            setCurrentPointMe(Math.max(0, currentPointMe + delta));
+        } else {
+            setCurrentPointOpp(Math.max(0, currentPointOpp + delta));
+        }
+    };
+
+    const finishSet = () => {
+        // Save using current state
+        const newScores = [...matchScores];
+        newScores[activeSetIndex] = { me: currentPointMe.toString(), opp: currentPointOpp.toString() };
+        setMatchScores(newScores);
+
+        // Reset for next set
+        if (activeSetIndex < 4) {
+            setActiveSetIndex(prev => prev + 1);
+            setCurrentPointMe(0);
+            setCurrentPointOpp(0);
+        }
+    };
+
+    // Also update confirm close to reset everything
+    const confirmCloseAction = () => {
+        setShowConfirmModal(false);
+        setShowScoreModal(false);
+        setMatchScores(Array(5).fill({ me: "", opp: "" }));
+        setActiveSetIndex(0);
+        setCurrentPointMe(0);
+        setCurrentPointOpp(0);
+    };
+
+    const handleSimulateScan = async (type: "venue" | "match") => {
+        if (isScanning) return;
+        setIsScanning(true);
+        setScanned(true);
+
+        // Simulate scanning delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        if (type === "venue") {
+            handleVenueCheckIn("00000000-0000-0000-0000-000000000001");
+        } else {
+            // Simulate User Scan (Opponent)
+            // Use mock data so simulation always works
+            setScannedOpponent({
+                id: "sim-opponent-id",
+                name: "Simulasi Lawan",
+                avatar_url: null,
+                rating_mr: 1350
+            });
+            setShowScoreModal(true);
+        }
+
+        if (Platform.OS === 'web') {
+            setIsScanning(false);
+            setScanned(false);
+        }
+    };
+
+    // Helpers for Sim Button
+    const simulateReset = () => {
+        setIsScanning(false);
+        setScanned(false);
+    }
+
+    if (!permission) {
+        // Camera permissions are still loading.
+        return <View style={[styles.container, { backgroundColor: bgColor, justifyContent: 'center' }]}><ActivityIndicator /></View>;
+    }
+
+    if (!permission.granted) {
+        // Camera permissions are not granted yet.
+        return (
+            <SafeAreaView style={[styles.container, { backgroundColor: bgColor, justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+                <MaterialIcons name="no-photography" size={64} color={mutedColor} style={{ marginBottom: 20 }} />
+                <Text style={{ textAlign: 'center', color: textColor, marginBottom: 20, fontSize: 16 }}>
+                    Kami membutuhkan izin kamera untuk memindai QR Code.
+                </Text>
+                <Button onPress={requestPermission} title="Izinkan Kamera" color={Colors.primary} />
+            </SafeAreaView>
+        );
+    }
 
     return (
         <>
@@ -76,89 +404,210 @@ export default function ScanQRScreen() {
                     <Text style={[styles.headerTitle, { color: "#fff" }]}>Scan QR</Text>
                     <View style={{ width: 40 }} />
                 </View>
-                {/* Scanner Placeholder */}
-                <View style={styles.scannerArea}>
-                    <View style={[styles.scannerFrame, { borderColor: Colors.primary }]}>
-                        <View style={[styles.cornerTL, { borderColor: Colors.primary }]} />
-                        <View style={[styles.cornerTR, { borderColor: Colors.primary }]} />
-                        <View style={[styles.cornerBL, { borderColor: Colors.primary }]} />
-                        <View style={[styles.cornerBR, { borderColor: Colors.primary }]} />
 
-                        {isScanning ? (
-                            <ActivityIndicator size="large" color={Colors.primary} />
-                        ) : (
-                            <MaterialIcons name="qr-code-scanner" size={80} color={mutedColor} />
-                        )}
-                    </View>
-                    <Text style={[styles.scanHint, { color: mutedColor }]}>
-                        {isScanning ? "Memproses..." : "Arahkan kamera ke QR Code"}
-                    </Text>
+                {/* Camera View */}
+                <View style={styles.cameraContainer}>
+                    {Platform.OS === 'web' ? (
+                        <View style={[styles.webCameraPlaceholder, { backgroundColor: '#000' }]}>
+                            <Text style={{ color: '#fff' }}>Kamera tidak tersedia di preview web.</Text>
+                            <Text style={{ color: '#aaa', fontSize: 12, marginTop: 8 }}>Gunakan "Simulasi Scan" di bawah.</Text>
+                        </View>
+                    ) : (
+                        <>
+                            <CameraView
+                                style={styles.camera}
+                                facing="back"
+                                onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+                            />
+                            {/* Overlay needs to be absolutely positioned over the camera, not a child */}
+                            <View style={[styles.scannerOverlay, StyleSheet.absoluteFillObject]}>
+                                <View style={[styles.scannerFrame, { borderColor: scanned ? Colors.success : '#fff' }]} />
+                                <Text style={styles.scanHint}>
+                                    {scanned ? "Memproses..." : "Arahkan kamera ke QR Code"}
+                                </Text>
+                            </View>
+                        </>
+                    )}
                 </View>
 
-                {/* Quick Actions */}
+                {/* Actions / Simulation for Dev or Backup */}
                 <View style={styles.actionsContainer}>
-                    <Text style={[styles.actionsTitle, { color: textColor }]}>Simulasi Scan</Text>
-                    <Text style={[styles.actionsDesc, { color: mutedColor }]}>
-                        Untuk demo, gunakan tombol di bawah
-                    </Text>
+                    <View style={styles.dragHandle} />
+                    <Text style={[styles.actionsTitle, { color: textColor }]}>Opsi Lain</Text>
 
-                    <TouchableOpacity
-                        style={[styles.actionBtn, { backgroundColor: cardColor }]}
-                        onPress={() => handleSimulateScan("venue")}
-                        disabled={isScanning}
-                    >
-                        <View style={[styles.actionIcon, { backgroundColor: `${Colors.primary}20` }]}>
-                            <MaterialIcons name="place" size={24} color={Colors.primary} />
-                        </View>
-                        <View style={styles.actionText}>
-                            <Text style={[styles.actionTitle, { color: textColor }]}>Check-in Venue</Text>
-                            <Text style={[styles.actionSubtitle, { color: mutedColor }]}>
-                                Scan QR di meja untuk check-in
-                            </Text>
-                        </View>
-                        <MaterialIcons name="chevron-right" size={24} color={mutedColor} />
-                    </TouchableOpacity>
+                    <ScrollView style={{ maxHeight: 200 }}>
+                        <TouchableOpacity
+                            style={[styles.actionBtn, { backgroundColor: cardColor }]}
+                            onPress={() => handleSimulateScan("venue")}
+                            disabled={isScanning}
+                        >
+                            <View style={[styles.actionIcon, { backgroundColor: `${Colors.primary}20` }]}>
+                                <MaterialIcons name="place" size={24} color={Colors.primary} />
+                            </View>
+                            <View style={styles.actionText}>
+                                <Text style={[styles.actionTitle, { color: textColor }]}>Simulasi Check-in</Text>
+                                <Text style={[styles.actionSubtitle, { color: mutedColor }]}>
+                                    Demo check-in venue
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
 
-                    <TouchableOpacity
-                        style={[styles.actionBtn, { backgroundColor: cardColor }]}
-                        onPress={() => handleSimulateScan("match")}
-                        disabled={isScanning}
-                    >
-                        <View style={[styles.actionIcon, { backgroundColor: `${Colors.secondary}20` }]}>
-                            <MaterialIcons name="sports-tennis" size={24} color={Colors.secondary} />
-                        </View>
-                        <View style={styles.actionText}>
-                            <Text style={[styles.actionTitle, { color: textColor }]}>Konfirmasi Match</Text>
-                            <Text style={[styles.actionSubtitle, { color: mutedColor }]}>
-                                Scan QR lawan untuk mulai pertandingan
-                            </Text>
-                        </View>
-                        <MaterialIcons name="chevron-right" size={24} color={mutedColor} />
-                    </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.actionBtn, { backgroundColor: cardColor }]}
+                            onPress={() => handleSimulateScan("match")}
+                            disabled={isScanning}
+                        >
+                            <View style={[styles.actionIcon, { backgroundColor: `${Colors.primary}20` }]}>
+                                <MaterialIcons name="qr-code-scanner" size={24} color={Colors.primary} />
+                            </View>
+                            <View style={styles.actionText}>
+                                <Text style={[styles.actionTitle, { color: textColor }]}>Simulasi On-the-spot</Text>
+                                <Text style={[styles.actionSubtitle, { color: mutedColor }]}>
+                                    Demo scan lawan & score
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
 
-                    <TouchableOpacity
-                        style={[styles.actionBtn, { backgroundColor: cardColor }]}
-                        disabled={isScanning}
-                    >
-                        <View style={[styles.actionIcon, { backgroundColor: "#F59E0B20" }]}>
-                            <MaterialIcons name="emoji-events" size={24} color="#F59E0B" />
-                        </View>
-                        <View style={styles.actionText}>
-                            <Text style={[styles.actionTitle, { color: textColor }]}>Daftar Turnamen</Text>
-                            <Text style={[styles.actionSubtitle, { color: mutedColor }]}>
-                                Scan untuk daftar turnamen cepat
-                            </Text>
-                        </View>
-                        <MaterialIcons name="chevron-right" size={24} color={mutedColor} />
-                    </TouchableOpacity>
+                        {scanned && (
+                            <TouchableOpacity
+                                style={[styles.actionBtn, { backgroundColor: cardColor, borderColor: Colors.primary }]}
+                                onPress={resetScan}
+                            >
+                                <View style={[styles.actionIcon, { backgroundColor: `${Colors.primary}20` }]}>
+                                    <MaterialIcons name="refresh" size={24} color={Colors.primary} />
+                                </View>
+                                <View style={styles.actionText}>
+                                    <Text style={[styles.actionTitle, { color: textColor }]}>Scan Ulang</Text>
+                                </View>
+                            </TouchableOpacity>
+                        )}
+                    </ScrollView>
                 </View>
 
-                {/* My QR Code */}
-                <TouchableOpacity style={styles.myQrBtn}>
-                    <MaterialIcons name="qr-code" size={20} color={Colors.primary} />
-                    <Text style={[styles.myQrText, { color: Colors.primary }]}>Tampilkan QR Code Saya</Text>
-                </TouchableOpacity>
-            </SafeAreaView>
+                {/* Scoreboard Modal */}
+                <Modal
+                    visible={showScoreModal}
+                    transparent={true}
+                    animationType="slide"
+                    onRequestClose={handleCloseModal}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.scorerContainer}>
+                            {/* Header */}
+                            <View style={styles.scorerHeader}>
+                                <View style={{ width: 40 }} /> {/* Spacer Left */}
+                                <Text style={[styles.scorerTitle, { color: textColor }]}>Set {activeSetIndex + 1}</Text>
+                                <TouchableOpacity onPress={handleCloseModal} style={styles.closeBtn}>
+                                    <MaterialIcons name="close" size={24} color={mutedColor} />
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* Players & Scores */}
+                            <View style={styles.scorerBody}>
+                                {/* Player 1 (Me) */}
+                                <View style={styles.playerColumn}>
+                                    <Text style={[styles.playerNameLarge, { color: textColor }]}>{profile?.name || "Anda"}</Text>
+                                    <TouchableOpacity style={[styles.scoreBigBox, { borderColor: activeSetWinner === 'me' ? Colors.success : Colors.border }]} onPress={() => handlePointChange('me', 1)}>
+                                        <Text style={[styles.scoreBigText, { color: textColor }]}>{currentPointMe}</Text>
+                                    </TouchableOpacity>
+                                    <View style={styles.scoreControls}>
+                                        <TouchableOpacity style={[styles.controlBtn, { borderColor: Colors.muted }]} onPress={() => handlePointChange('me', -1)}>
+                                            <MaterialIcons name="remove" size={24} color={Colors.text} />
+                                        </TouchableOpacity>
+                                        <TouchableOpacity style={[styles.controlBtn, { borderColor: Colors.muted }]} onPress={() => handlePointChange('me', 1)}>
+                                            <MaterialIcons name="add" size={24} color={Colors.primary} />
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+
+                                {/* VS Divider */}
+                                <View style={styles.centerDivider}>
+                                    <Text style={[styles.vsTextLarge, { color: mutedColor }]}>:</Text>
+                                </View>
+
+                                {/* Player 2 (Opponent) */}
+                                <View style={styles.playerColumn}>
+                                    <Text style={[styles.playerNameLarge, { color: textColor }]}>{scannedOpponent?.name || "Lawan"}</Text>
+                                    <TouchableOpacity style={[styles.scoreBigBox, { borderColor: activeSetWinner === 'opp' ? Colors.success : Colors.border }]} onPress={() => handlePointChange('opp', 1)}>
+                                        <Text style={[styles.scoreBigText, { color: textColor }]}>{currentPointOpp}</Text>
+                                    </TouchableOpacity>
+                                    <View style={styles.scoreControls}>
+                                        <TouchableOpacity style={[styles.controlBtn, { borderColor: Colors.muted }]} onPress={() => handlePointChange('opp', -1)}>
+                                            <MaterialIcons name="remove" size={24} color={Colors.text} />
+                                        </TouchableOpacity>
+                                        <TouchableOpacity style={[styles.controlBtn, { borderColor: Colors.muted }]} onPress={() => handlePointChange('opp', 1)}>
+                                            <MaterialIcons name="add" size={24} color={Colors.primary} />
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            </View>
+
+                            {/* Action Buttons */}
+                            {/* Action Buttons */}
+                            <View style={styles.scorerActions}>
+                                {activeSetWinner ? (
+                                    <TouchableOpacity style={[styles.nextSetBtn, { backgroundColor: Colors.primary }]} onPress={() => {
+                                        finishSet();
+                                        if (activeSetIndex === 4) handleSubmitMatch();
+                                    }}>
+                                        <Text style={styles.nextSetText}>
+                                            {activeSetIndex === 4 ? "Selesai Match & Simpan" : "Lanjut Set Berikutnya"}
+                                        </Text>
+                                        <MaterialIcons name="arrow-forward" size={24} color="#fff" />
+                                    </TouchableOpacity>
+                                ) : (
+                                    <View style={{ height: 20 }} />
+                                )}
+
+                                <TouchableOpacity
+                                    style={[styles.finishMatchBtn, { borderColor: Colors.primary }]}
+                                    onPress={handleSubmitMatch}
+                                >
+                                    <Text style={{ color: Colors.primary, fontWeight: '700', fontSize: 16 }}>Akhiri & Simpan Match</Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* History Footer */}
+                            <View style={{ height: 60, marginTop: 20 }}>
+                                <ScrollView horizontal contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }} showsHorizontalScrollIndicator={false}>
+                                    {matchScores.map((s, idx) => (
+                                        <View key={idx} style={[styles.historyBadge, idx === activeSetIndex && { backgroundColor: Colors.primary }]}>
+                                            <Text style={[styles.historyText, { color: idx === activeSetIndex ? '#fff' : textColor }]}>
+                                                S{idx + 1}: {idx === activeSetIndex ? `${currentPointMe}-${currentPointOpp}` : `${s.me || 0}-${s.opp || 0}`}
+                                            </Text>
+                                        </View>
+                                    ))}
+                                </ScrollView>
+                            </View>
+
+                            {showConfirmModal && (
+                                <View style={styles.confirmOverlay}>
+                                    <View style={styles.confirmContent}>
+                                        <Text style={[styles.confirmTitle, { color: textColor }]}>Batalkan Input Skor?</Text>
+                                        <Text style={[styles.confirmDesc, { color: mutedColor }]}>Data skor yang sudah diisi akan hilang.</Text>
+
+                                        <View style={styles.confirmActions}>
+                                            <TouchableOpacity
+                                                style={[styles.confirmBtn, { borderColor: Colors.muted }]}
+                                                onPress={() => setShowConfirmModal(false)}
+                                            >
+                                                <Text style={[styles.confirmBtnText, { color: textColor }]}>Lanjut Main</Text>
+                                            </TouchableOpacity>
+
+                                            <TouchableOpacity
+                                                style={[styles.confirmBtn, styles.confirmBtnDestructive]}
+                                                onPress={confirmCloseAction}
+                                            >
+                                                <Text style={[styles.confirmBtnText, { color: '#fff' }]}>Ya, Keluar</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                </View>
+                            )}
+                        </View>
+                    </View>
+                </Modal>
+            </SafeAreaView >
         </>
     );
 }
@@ -172,11 +621,9 @@ const styles = StyleSheet.create({
         justifyContent: "space-between",
         alignItems: "center",
         paddingHorizontal: 20,
-        paddingBottom: 24,
+        paddingBottom: 16,
         paddingTop: 12,
         backgroundColor: Colors.secondary,
-        borderBottomLeftRadius: 24,
-        borderBottomRightRadius: 24,
         zIndex: 10,
     },
     headerTitle: {
@@ -190,92 +637,80 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
     },
-    scannerArea: {
-        alignItems: "center",
-        paddingVertical: 40,
+    cameraContainer: {
+        flex: 1,
+        backgroundColor: '#000',
+        overflow: 'hidden',
+    },
+    camera: {
+        flex: 1,
+    },
+    webCameraPlaceholder: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    scannerOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     scannerFrame: {
         width: 250,
         height: 250,
-        justifyContent: "center",
-        alignItems: "center",
         borderWidth: 2,
         borderRadius: 20,
-        borderStyle: "dashed",
-        position: "relative",
-    },
-    cornerTL: {
-        position: "absolute",
-        top: -2,
-        left: -2,
-        width: 30,
-        height: 30,
-        borderTopWidth: 4,
-        borderLeftWidth: 4,
-        borderTopLeftRadius: 12,
-    },
-    cornerTR: {
-        position: "absolute",
-        top: -2,
-        right: -2,
-        width: 30,
-        height: 30,
-        borderTopWidth: 4,
-        borderRightWidth: 4,
-        borderTopRightRadius: 12,
-    },
-    cornerBL: {
-        position: "absolute",
-        bottom: -2,
-        left: -2,
-        width: 30,
-        height: 30,
-        borderBottomWidth: 4,
-        borderLeftWidth: 4,
-        borderBottomLeftRadius: 12,
-    },
-    cornerBR: {
-        position: "absolute",
-        bottom: -2,
-        right: -2,
-        width: 30,
-        height: 30,
-        borderBottomWidth: 4,
-        borderRightWidth: 4,
-        borderBottomRightRadius: 12,
+        backgroundColor: 'transparent',
     },
     scanHint: {
-        fontSize: 14,
+        color: '#fff',
         marginTop: 20,
+        fontSize: 14,
+        fontWeight: '500',
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        overflow: 'hidden',
     },
     actionsContainer: {
-        paddingHorizontal: 20,
+        backgroundColor: Colors.background,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: 20,
+        paddingBottom: 40,
+        marginTop: -24, // Overlap camera slightly
+    },
+    dragHandle: {
+        width: 40,
+        height: 4,
+        backgroundColor: Colors.muted + '40',
+        borderRadius: 2,
+        alignSelf: 'center',
+        marginBottom: 16,
     },
     actionsTitle: {
         fontSize: 18,
         fontWeight: "bold",
-        marginBottom: 4,
-    },
-    actionsDesc: {
-        fontSize: 13,
         marginBottom: 16,
     },
     actionBtn: {
         flexDirection: "row",
         alignItems: "center",
-        padding: 14,
+        padding: 12,
         borderRadius: 16,
         marginBottom: 10,
         borderWidth: 1,
         borderColor: "rgba(0,0,0,0.05)",
     },
     actionIcon: {
-        width: 44,
-        height: 44,
+        width: 40,
+        height: 40,
         borderRadius: 12,
         justifyContent: "center",
         alignItems: "center",
-        marginRight: 14,
+        marginRight: 12,
     },
     actionText: {
         flex: 1,
@@ -286,18 +721,270 @@ const styles = StyleSheet.create({
     },
     actionSubtitle: {
         fontSize: 12,
+        color: Colors.muted,
         marginTop: 2,
     },
-    myQrBtn: {
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.5)",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    modalContent: {
+        width: "90%",
+        maxHeight: "80%",
+        backgroundColor: Colors.background,
+        borderRadius: 20,
+        padding: 20,
+        elevation: 5,
+    },
+    modalHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 20,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: "bold",
+    },
+    vsContainer: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 24,
+    },
+    playerBlock: {
+        alignItems: "center",
+        flex: 1,
+    },
+    playerName: {
+        fontWeight: "bold",
+        marginTop: 8,
+        textAlign: "center",
+    },
+    vsText: {
+        fontSize: 20,
+        fontWeight: "bold",
+        color: Colors.muted,
+        marginHorizontal: 10,
+    },
+    setRow: {
         flexDirection: "row",
         alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        marginTop: 24,
-        paddingVertical: 14,
+        justifyContent: "space-between",
+        marginBottom: 12,
     },
-    myQrText: {
-        fontSize: 15,
+    setLabel: {
+        width: 50,
         fontWeight: "600",
+    },
+    scoreInput: {
+        borderWidth: 1,
+        borderColor: Colors.muted,
+        borderRadius: 8,
+        width: 60,
+        height: 40,
+        textAlign: "center",
+        fontSize: 18,
+        fontWeight: "bold",
+    },
+    submitBtn: {
+        paddingVertical: 14,
+        borderRadius: 12,
+        alignItems: "center",
+        marginTop: 20,
+    },
+    submitBtnText: {
+        color: "#fff",
+        fontSize: 16,
+        fontWeight: "bold",
+    },
+    closeBtn: {
+        padding: 12,
+    },
+    // Confirm Modal
+    confirmOverlay: {
+        position: 'absolute',
+        top: 0, bottom: 0, left: 0, right: 0,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 20,
+        borderRadius: 20, // Match modal radius
+    },
+    confirmContent: {
+        width: '85%',
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        padding: 24,
+        alignItems: 'center',
+        elevation: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+    },
+    confirmTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 8,
+        textAlign: 'center',
+    },
+    confirmDesc: {
+        fontSize: 14,
+        textAlign: 'center',
+        marginBottom: 24,
+    },
+    confirmActions: {
+        flexDirection: 'row',
+        gap: 12,
+        width: '100%',
+    },
+    confirmBtn: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 12,
+        alignItems: 'center',
+        borderWidth: 1,
+        justifyContent: 'center',
+    },
+    confirmBtnDestructive: {
+        backgroundColor: '#EF4444',
+        borderColor: '#EF4444',
+    },
+    confirmBtnText: {
+        fontWeight: '600',
+        fontSize: 14,
+    },
+    // Live Scorer Styles
+    scorerContainer: {
+        width: '100%',
+        height: '100%',
+        backgroundColor: Colors.background,
+        padding: 20,
+    },
+    scorerHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 30,
+        position: 'relative',
+    },
+    scorerTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        zIndex: -1, // Behind buttons
+    },
+
+    scorerBody: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flex: 1,
+    },
+    playerColumn: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    playerNameLarge: {
+        fontSize: 18,
+        fontWeight: '600',
+        marginBottom: 16,
+        textAlign: 'center',
+    },
+    scoreBigBox: {
+        width: 150, // Increased from 120
+        height: 150, // Increased from 120
+        borderRadius: 30,
+        borderWidth: 4,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: Colors.surface,
+        marginBottom: 20,
+    },
+    scoreBigText: {
+        fontSize: 90, // Increased from 64
+        fontWeight: 'bold',
+    },
+    scoreControls: {
+        flexDirection: 'row',
+        gap: 16,
+    },
+    controlBtn: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        borderWidth: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: Colors.surface,
+    },
+    centerDivider: {
+        marginHorizontal: 10,
+    },
+    vsTextLarge: {
+        fontSize: 32,
+        fontWeight: 'bold',
+    },
+    scorerActions: {
+        alignItems: 'center',
+        marginBottom: 30,
+    },
+    nextSetBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 16,
+        paddingHorizontal: 32,
+        borderRadius: 100,
+        elevation: 5,
+        shadowColor: Colors.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+    },
+    nextSetText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginRight: 8,
+    },
+    helperText: {
+        fontSize: 14,
+        fontStyle: 'italic',
+    },
+    historyFooter: {
+        height: 50,
+    },
+    historyBadge: {
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        backgroundColor: Colors.surface,
+        marginRight: 10,
+        borderWidth: 1,
+        borderColor: Colors.border,
+    },
+    activeHistoryBadge: {
+        backgroundColor: Colors.primary,
+        borderColor: Colors.primary,
+    },
+    historyText: {
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    finishMatchBtn: {
+        marginTop: 20,
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: 12,
+        borderWidth: 2,
+        alignItems: 'center',
+        width: '80%',
     },
 });

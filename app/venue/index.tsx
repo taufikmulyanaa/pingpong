@@ -14,6 +14,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, Stack } from "expo-router";
 import { Colors, Facilities, SharedStyles, ExtendedColors } from "../../src/lib/constants";
 import { supabase } from "../../src/lib/supabase";
+import { AddVenueModal } from "../../src/components/AddVenueModal";
 
 // Mock data removed
 
@@ -104,6 +105,7 @@ export default function VenueListScreen() {
     const [sortBy, setSortBy] = useState<"distance" | "rating" | "price">("distance");
     const [venues, setVenues] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [showAddModal, setShowAddModal] = useState(false);
 
     // Fetch venues from Supabase
     useEffect(() => {
@@ -113,8 +115,8 @@ export default function VenueListScreen() {
                 const { data, error } = await supabase
                     .from("venues")
                     .select("*")
-                    .eq("is_active", true)
-                    .limit(20);
+                    // .eq("is_active", true) // Debug: Show all
+                    .limit(50);
 
                 if (error) {
                     console.error("Error fetching venues:", error);
@@ -168,8 +170,8 @@ export default function VenueListScreen() {
                         <MaterialIcons name="arrow-back" size={24} color="#fff" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Venue & PTM</Text>
-                    <TouchableOpacity style={styles.headerBtn} onPress={() => router.push("/venue-map" as any)}>
-                        <MaterialIcons name="map" size={24} color="#fff" />
+                    <TouchableOpacity style={styles.headerBtn} onPress={() => setShowAddModal(true)}>
+                        <MaterialIcons name="add" size={24} color="#fff" />
                     </TouchableOpacity>
                 </View>
 
@@ -253,6 +255,32 @@ export default function VenueListScreen() {
                     <View style={{ height: 20 }} />
                 </ScrollView>
             </SafeAreaView>
+
+            {/* Add Venue Modal */}
+            <AddVenueModal
+                visible={showAddModal}
+                onClose={() => setShowAddModal(false)}
+                onSuccess={() => {
+                    // Refresh venues
+                    const fetchVenues = async () => {
+                        const { data } = await supabase
+                            .from("venues")
+                            .select("*")
+                            // .eq("is_active", true)
+                            .limit(50);
+                        if (data && data.length > 0) {
+                            const mappedVenues = data.map((v: any) => ({
+                                ...v,
+                                images: v.images || ["https://placehold.co/300x200/009688/white?text=" + encodeURIComponent(v.name)],
+                                facilities: v.facilities || [],
+                                distance: 0,
+                            }));
+                            setVenues(mappedVenues);
+                        }
+                    };
+                    fetchVenues();
+                }}
+            />
         </>
     );
 }

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
     View,
     Text,
@@ -11,20 +11,62 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, Stack } from "expo-router";
-import { Colors, SharedStyles, ExtendedColors } from "../../src/lib/constants";
+import { Colors } from "../../src/lib/constants";
+import { supabase } from "../../src/lib/supabase";
+import { useAuthStore } from "../../src/stores/authStore";
 
-// Mock data for hosted tables
-// Mock data removed
+interface HostedVenue {
+    id: string;
+    name: string;
+    address: string;
+    city: string;
+    images: string[];
+    is_active: boolean;
+    rating: number;
+    review_count: number;
+    price_per_hour: number;
+}
 
 export default function HostListScreen() {
     const router = useRouter();
+    const { profile } = useAuthStore();
     const [refreshing, setRefreshing] = useState(false);
-    const [tables, setTables] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [tables, setTables] = useState<HostedVenue[]>([]);
 
-    const onRefresh = React.useCallback(() => {
+    const fetchMyVenues = async () => {
+        if (!profile) return;
+
+        try {
+            const { data, error } = await supabase
+                .from("venues")
+                .select("*")
+                .eq("owner_id", profile.id)
+                .order("created_at", { ascending: false });
+
+            if (error) {
+                console.error("Error fetching venues:", error);
+                setTables([]);
+            } else {
+                setTables(data || []);
+            }
+        } catch (error) {
+            console.error("Error:", error);
+            setTables([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchMyVenues();
+    }, [profile]);
+
+    const onRefresh = useCallback(async () => {
         setRefreshing(true);
-        setTimeout(() => setRefreshing(false), 1000);
-    }, []);
+        await fetchMyVenues();
+        setRefreshing(false);
+    }, [profile]);
 
     const bgColor = Colors.background;
     const cardColor = Colors.card;
@@ -42,7 +84,10 @@ export default function HostListScreen() {
             <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={["top", "bottom"]}>
                 {/* Custom Navy Header */}
                 <View style={styles.header}>
-                    <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
+                    <TouchableOpacity
+                        style={styles.headerBtn}
+                        onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)")}
+                    >
                         <MaterialIcons name="arrow-back" size={24} color="#fff" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Meja Saya</Text>
@@ -76,33 +121,40 @@ export default function HostListScreen() {
                                 style={[styles.tableCard, { backgroundColor: cardColor, borderColor }]}
                                 onPress={() => router.push(`/host/${table.id}` as any)}
                             >
-                                <Image source={{ uri: table.image }} style={styles.tableImage} />
+                                <Image
+                                    source={{ uri: table.images?.[0] || `https://placehold.co/320x140/009688/white?text=${encodeURIComponent(table.name)}` }}
+                                    style={styles.tableImage}
+                                />
                                 <View style={styles.tableContent}>
                                     <View style={styles.tableHeader}>
                                         <Text style={[styles.tableName, { color: textColor }]}>{table.name}</Text>
                                         <View style={[
                                             styles.statusBadge,
-                                            { backgroundColor: table.status === "ACTIVE" ? "#D1FAE5" : table.status === "BOOKED" ? "#FEF3C7" : "#F3F4F6" }
+                                            { backgroundColor: table.is_active ? "#D1FAE5" : "#F3F4F6" }
                                         ]}>
                                             <Text style={[
                                                 styles.statusText,
-                                                { color: table.status === "ACTIVE" ? "#059669" : table.status === "BOOKED" ? "#D97706" : "#6B7280" }
+                                                { color: table.is_active ? "#059669" : "#6B7280" }
                                             ]}>
-                                                {table.status === "ACTIVE" ? "Tersedia" : table.status === "BOOKED" ? "Booked" : "Non-aktif"}
+                                                {table.is_active ? "Aktif" : "Non-aktif"}
                                             </Text>
                                         </View>
                                     </View>
 
-                                    <Text style={[styles.tableAddress, { color: mutedColor }]}>{table.address}</Text>
+                                    <Text style={[styles.tableAddress, { color: mutedColor }]}>{table.address}, {table.city}</Text>
 
                                     <View style={styles.cardFooter}>
                                         <View style={styles.footerStat}>
                                             <MaterialIcons name="star" size={14} color="#F59E0B" />
-                                            <Text style={[styles.footerText, { color: mutedColor }]}>{table.rating} ({table.reviews})</Text>
+                                            <Text style={[styles.footerText, { color: mutedColor }]}>{table.rating || 0} ({table.review_count || 0})</Text>
+                                        </View>
+                                        <View style={styles.footerStat}>
+                                            <MaterialIcons name="table-restaurant" size={14} color={Colors.primary} />
+                                            <Text style={[styles.footerText, { color: mutedColor }]}>{(table as any).table_count || 1} meja</Text>
                                         </View>
                                         <View style={styles.footerStat}>
                                             <MaterialIcons name="payments" size={14} color="#10B981" />
-                                            <Text style={[styles.footerText, { color: mutedColor }]}>{table.earnings}</Text>
+                                            <Text style={[styles.footerText, { color: mutedColor }]}>Rp {(table.price_per_hour || 0).toLocaleString()}/jam</Text>
                                         </View>
                                     </View>
                                 </View>
