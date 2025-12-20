@@ -10,6 +10,8 @@ import {
     Alert,
     ActivityIndicator,
     Image,
+    Modal,
+    Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -67,6 +69,16 @@ export default function BracketGeneratorScreen() {
     const [saving, setSaving] = useState(false);
     const [isOrganizer, setIsOrganizer] = useState(false);
     const [selectedMatch, setSelectedMatch] = useState<BracketMatch | null>(null);
+
+    // Match edit modal states
+    const [showMatchModal, setShowMatchModal] = useState(false);
+    const [editScore1, setEditScore1] = useState("0");
+    const [editScore2, setEditScore2] = useState("0");
+    const [editScheduledTime, setEditScheduledTime] = useState("");
+    const [editTableNumber, setEditTableNumber] = useState("");
+    const [editRefereeId, setEditRefereeId] = useState("");
+    const [referees, setReferees] = useState<Participant[]>([]);
+    const [updatingMatch, setUpdatingMatch] = useState(false);
 
     // Colors
     const bgColor = Colors.background;
@@ -373,6 +385,90 @@ export default function BracketGeneratorScreen() {
         }
     };
 
+    // Open match edit modal
+    const openMatchEditModal = (match: BracketMatch) => {
+        setSelectedMatch(match);
+        setEditScore1(String(match.score1 || 0));
+        setEditScore2(String(match.score2 || 0));
+        setEditScheduledTime(match.scheduledAt || "");
+        setEditTableNumber(String(match.tableNumber || ""));
+        setEditRefereeId("");
+        setShowMatchModal(true);
+    };
+
+    // Save match details (schedule, referee, score)
+    const handleSaveMatchDetails = async () => {
+        if (!selectedMatch || !tournamentId) return;
+
+        setUpdatingMatch(true);
+        try {
+            const score1 = parseInt(editScore1) || 0;
+            const score2 = parseInt(editScore2) || 0;
+            const winnerId = score1 > score2 ? selectedMatch.player1?.id :
+                score2 > score1 ? selectedMatch.player2?.id : null;
+
+            const updateData: any = {
+                player1_score: score1,
+                player2_score: score2,
+                table_number: editTableNumber ? parseInt(editTableNumber) : null,
+            };
+
+            // Only set winner if scores are different
+            if (winnerId && score1 !== score2) {
+                updateData.winner_id = winnerId;
+                updateData.status = "COMPLETED";
+                updateData.completed_at = new Date().toISOString();
+            }
+
+            // Set scheduled time
+            if (editScheduledTime) {
+                updateData.scheduled_at = editScheduledTime;
+            }
+
+            // Set referee
+            if (editRefereeId) {
+                updateData.referee_id = editRefereeId;
+            }
+
+            const { error } = await supabase
+                .from("tournament_matches")
+                .update(updateData)
+                .eq("id", selectedMatch.id);
+
+            if (error) throw error;
+
+            await fetchMatches(tournamentId);
+            setShowMatchModal(false);
+            Alert.alert("Berhasil", "Detail pertandingan berhasil diperbarui!");
+        } catch (err) {
+            console.error("Save error:", err);
+            Alert.alert("Error", "Gagal menyimpan detail");
+        } finally {
+            setUpdatingMatch(false);
+        }
+    };
+
+    // Set match to in progress
+    const handleStartMatch = async () => {
+        if (!selectedMatch || !tournamentId) return;
+
+        try {
+            await supabase
+                .from("tournament_matches")
+                .update({
+                    status: "IN_PROGRESS",
+                    started_at: new Date().toISOString(),
+                } as any)
+                .eq("id", selectedMatch.id);
+
+            await fetchMatches(tournamentId);
+            setShowMatchModal(false);
+            Alert.alert("Berhasil", "Pertandingan dimulai!");
+        } catch (err) {
+            Alert.alert("Error", "Gagal memulai pertandingan");
+        }
+    };
+
     const getRoundName = (round: number, totalRounds: number): string => {
         if (round === totalRounds) return "Final";
         if (round === totalRounds - 1) return "Semi Final";
@@ -397,9 +493,22 @@ export default function BracketGeneratorScreen() {
                                     <TouchableOpacity
                                         key={match.id}
                                         style={[styles.matchCard, { backgroundColor: cardColor, borderColor }]}
-                                        onPress={() => isOrganizer && !match.isBye && setSelectedMatch(match)}
+                                        onPress={() => isOrganizer && !match.isBye && openMatchEditModal(match)}
                                         disabled={!isOrganizer || match.isBye}
                                     >
+                                        {/* Time & Table indicator */}
+                                        {(match.scheduledAt || match.tableNumber) && (
+                                            <View style={styles.matchMeta}>
+                                                {match.scheduledAt && (
+                                                    <Text style={styles.matchTime}>
+                                                        {new Date(match.scheduledAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                                                    </Text>
+                                                )}
+                                                {match.tableNumber && (
+                                                    <Text style={styles.matchTable}>Meja {match.tableNumber}</Text>
+                                                )}
+                                            </View>
+                                        )}
                                         <View style={[styles.matchPlayer, { borderBottomColor: borderColor }]}>
                                             <Text style={[
                                                 styles.playerName,
@@ -621,6 +730,101 @@ export default function BracketGeneratorScreen() {
                     </View>
                 )}
             </SafeAreaView>
+
+            {/* Match Edit Modal */}
+            <Modal visible={showMatchModal} animationType="slide" transparent>
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalContent, { backgroundColor: bgColor }]}>
+                        <View style={styles.modalHeader}>
+                            <Text style={[styles.modalTitle, { color: textColor }]}>Edit Pertandingan</Text>
+                            <TouchableOpacity onPress={() => setShowMatchModal(false)}>
+                                <MaterialIcons name="close" size={24} color={mutedColor} />
+                            </TouchableOpacity>
+                        </View>
+
+                        {selectedMatch && (
+                            <ScrollView style={styles.modalBody}>
+                                {/* Players */}
+                                <View style={[styles.playersCard, { backgroundColor: cardColor }]}>
+                                    <Text style={[styles.playerLabel, { color: textColor }]}>
+                                        {selectedMatch.player1?.name || "TBD"}
+                                    </Text>
+                                    <Text style={{ color: mutedColor }}>vs</Text>
+                                    <Text style={[styles.playerLabel, { color: textColor }]}>
+                                        {selectedMatch.player2?.name || "TBD"}
+                                    </Text>
+                                </View>
+
+                                {/* Score Inputs */}
+                                <Text style={[styles.inputLabel, { color: textColor }]}>Skor</Text>
+                                <View style={styles.scoreRow}>
+                                    <TextInput
+                                        style={[styles.scoreInput, { backgroundColor: cardColor, color: textColor }]}
+                                        value={editScore1}
+                                        onChangeText={setEditScore1}
+                                        keyboardType="numeric"
+                                        placeholder="0"
+                                    />
+                                    <Text style={[styles.scoreSeparator, { color: mutedColor }]}>-</Text>
+                                    <TextInput
+                                        style={[styles.scoreInput, { backgroundColor: cardColor, color: textColor }]}
+                                        value={editScore2}
+                                        onChangeText={setEditScore2}
+                                        keyboardType="numeric"
+                                        placeholder="0"
+                                    />
+                                </View>
+
+                                {/* Table Number */}
+                                <Text style={[styles.inputLabel, { color: textColor }]}>Nomor Meja</Text>
+                                <TextInput
+                                    style={[styles.input, { backgroundColor: cardColor, color: textColor }]}
+                                    value={editTableNumber}
+                                    onChangeText={setEditTableNumber}
+                                    keyboardType="numeric"
+                                    placeholder="Contoh: 1"
+                                    placeholderTextColor={mutedColor}
+                                />
+
+                                {/* Scheduled Time (simple text for now) */}
+                                <Text style={[styles.inputLabel, { color: textColor }]}>Jadwal (Format: YYYY-MM-DD HH:MM)</Text>
+                                <TextInput
+                                    style={[styles.input, { backgroundColor: cardColor, color: textColor }]}
+                                    value={editScheduledTime}
+                                    onChangeText={setEditScheduledTime}
+                                    placeholder="2024-12-20 10:00"
+                                    placeholderTextColor={mutedColor}
+                                />
+
+                                {/* Action Buttons */}
+                                <View style={styles.modalActions}>
+                                    <TouchableOpacity
+                                        style={[styles.actionBtn, { backgroundColor: "#3B82F6" }]}
+                                        onPress={handleStartMatch}
+                                    >
+                                        <MaterialIcons name="play-arrow" size={20} color="#fff" />
+                                        <Text style={styles.actionBtnText}>Mulai</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.actionBtn, { backgroundColor: Colors.primary }]}
+                                        onPress={handleSaveMatchDetails}
+                                        disabled={updatingMatch}
+                                    >
+                                        {updatingMatch ? (
+                                            <ActivityIndicator size="small" color="#fff" />
+                                        ) : (
+                                            <>
+                                                <MaterialIcons name="save" size={20} color="#fff" />
+                                                <Text style={styles.actionBtnText}>Simpan</Text>
+                                            </>
+                                        )}
+                                    </TouchableOpacity>
+                                </View>
+                            </ScrollView>
+                        )}
+                    </View>
+                </View>
+            </Modal>
         </>
     );
 }
@@ -669,4 +873,24 @@ const styles = StyleSheet.create({
     winnerText: { fontWeight: "bold", color: "#10B981" },
     byeBadge: { position: "absolute", top: 2, right: 2, backgroundColor: "#F59E0B", paddingHorizontal: 4, paddingVertical: 2, borderRadius: 4 },
     byeText: { color: "#fff", fontSize: 8, fontWeight: "bold" },
+    // Match card metadata
+    matchMeta: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 8, paddingVertical: 4, backgroundColor: "#F3F4F6" },
+    matchTime: { fontSize: 10, color: "#6B7280", fontWeight: "500" },
+    matchTable: { fontSize: 10, color: "#6B7280" },
+    // Modal styles
+    modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+    modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "80%", minHeight: "40%" },
+    modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 16, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
+    modalTitle: { fontSize: 18, fontWeight: "bold" },
+    modalBody: { padding: 16 },
+    playersCard: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 16, borderRadius: 12, marginBottom: 20 },
+    playerLabel: { fontSize: 16, fontWeight: "600", flex: 1, textAlign: "center" },
+    inputLabel: { fontSize: 14, fontWeight: "600", marginBottom: 8, marginTop: 12 },
+    input: { borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 10, padding: 12, fontSize: 15 },
+    scoreRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 16 },
+    scoreInput: { width: 80, height: 60, borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 12, fontSize: 28, fontWeight: "bold", textAlign: "center" },
+    scoreSeparator: { fontSize: 24, fontWeight: "bold" },
+    modalActions: { flexDirection: "row", gap: 12, marginTop: 24, marginBottom: 20 },
+    actionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", padding: 14, borderRadius: 12, gap: 8 },
+    actionBtnText: { color: "#fff", fontSize: 15, fontWeight: "600" },
 });

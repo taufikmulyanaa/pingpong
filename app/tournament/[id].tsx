@@ -605,6 +605,7 @@ export default function TournamentDetailScreen() {
                             { key: "participants", label: `Peserta (${participants.length})` },
                             { key: "bracket", label: "Bracket" },
                             { key: "schedule", label: "Jadwal" },
+                            { key: "stats", label: "Statistik" },
                         ].map((tab) => (
                             <TouchableOpacity
                                 key={tab.key}
@@ -876,10 +877,56 @@ export default function TournamentDetailScreen() {
                                 )}
                             </View>
                         )}
+
+                        {/* Stats Tab Content */}
+                        {activeTab === "stats" && (
+                            <View>
+                                <TournamentStats tournamentId={id || ""} />
+
+                                {/* Organizer Quick Actions */}
+                                {isOrganizer && (
+                                    <View style={styles.organizerActions}>
+                                        <Text style={[styles.sectionTitle, { color: textColor, marginTop: 16 }]}>
+                                            Aksi Penyelenggara
+                                        </Text>
+                                        <View style={styles.quickActionsRow}>
+                                            <TouchableOpacity
+                                                style={[styles.quickActionBtn, { backgroundColor: "#3B82F6" }]}
+                                                onPress={() => router.push(`/tournament/checkin?tournamentId=${id}`)}
+                                            >
+                                                <MaterialIcons name="qr-code-scanner" size={20} color="#fff" />
+                                                <Text style={styles.quickActionText}>Check-in</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                style={[styles.quickActionBtn, { backgroundColor: "#8B5CF6" }]}
+                                                onPress={() => router.push(`/tournament/groups?tournamentId=${id}`)}
+                                            >
+                                                <MaterialIcons name="group-work" size={20} color="#fff" />
+                                                <Text style={styles.quickActionText}>Grup</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                style={[styles.quickActionBtn, { backgroundColor: "#10B981" }]}
+                                                onPress={() => Alert.alert("Export", "Fitur export akan segera tersedia")}
+                                            >
+                                                <MaterialIcons name="download" size={20} color="#fff" />
+                                                <Text style={styles.quickActionText}>Export</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                )}
+                            </View>
+                        )}
                     </View>
 
                     <View style={{ height: 40 }} />
                 </ScrollView>
+
+                {/* Notification Modal */}
+                <TournamentNotifications
+                    tournamentId={id || ""}
+                    visible={showNotifications}
+                    onClose={() => setShowNotifications(false)}
+                />
             </SafeAreaView>
         </>
     );
@@ -960,4 +1007,9 @@ const styles = StyleSheet.create({
     scheduleItem: { flexDirection: "row", gap: 16 },
     scheduleTime: { fontSize: 14, fontWeight: "600", width: 50 },
     scheduleEvent: { fontSize: 14, flex: 1 },
+    // Organizer quick actions
+    organizerActions: { marginTop: 16, paddingHorizontal: 16 },
+    quickActionsRow: { flexDirection: "row", gap: 10, marginTop: 12 },
+    quickActionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, padding: 12, borderRadius: 10 },
+    quickActionText: { color: "#fff", fontSize: 12, fontWeight: "600" },
 });
