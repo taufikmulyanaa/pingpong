@@ -111,23 +111,23 @@ export const MapComponent = (props: MapComponentProps) => {
                     />
                 )}
 
-                {showPlayersMode && players.map((player) => {
-                    const playerLat = player.latitude || (userLocation?.latitude || -6.2) + (Math.random() - 0.5) * 0.05;
-                    const playerLng = player.longitude || (userLocation?.longitude || 106.816666) + (Math.random() - 0.5) * 0.05;
-                    return (
-                        <Marker
-                            key={player.id}
-                            coordinate={{ latitude: playerLat, longitude: playerLng }}
-                            title={player.name || "Player"}
-                            description={`MR ${player.rating_mr}`}
-                            onPress={() => onPlayerPress?.(player.id!)}
-                        >
-                            <View style={[styles.playerMarker, { backgroundColor: player.is_online ? "#10B981" : Colors.primary }]}>
-                                <MaterialIcons name="person" size={16} color="#fff" />
-                            </View>
-                        </Marker>
-                    );
-                })}
+                {showPlayersMode && players
+                    .filter(player => player.latitude && player.longitude) // Only show players with valid location
+                    .map((player) => {
+                        return (
+                            <Marker
+                                key={player.id}
+                                coordinate={{ latitude: player.latitude!, longitude: player.longitude! }}
+                                title={player.name || "Player"}
+                                description={`MR ${player.rating_mr}${player.is_online ? ' • Online' : ''}`}
+                                onPress={() => onPlayerPress?.(player.id!)}
+                            >
+                                <View style={[styles.playerMarker, { backgroundColor: player.is_online ? "#10B981" : Colors.primary }]}>
+                                    <MaterialIcons name="person" size={16} color="#fff" />
+                                </View>
+                            </Marker>
+                        );
+                    })}
 
                 {!showPlayersMode && venues.map((venue) => (
                     <Marker

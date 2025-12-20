@@ -141,21 +141,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
         try {
             const { Platform } = require('react-native');
+            const { makeRedirectUri } = require('expo-auth-session');
 
-            // For web, redirect back to the current origin after OAuth
-            // For native, use the app scheme
-            let redirectUrl: string;
+            // Generate robust redirect URL for all platforms/environments
+            const redirectUrl = makeRedirectUri({
+                scheme: 'pingponghub',
+                path: 'auth/callback', // Optional: adds path for clarity
+            });
 
-            if (Platform.OS === 'web') {
-                // On web, redirect back to the current origin
-                // Supabase will append the auth tokens to the URL hash
-                redirectUrl = typeof window !== 'undefined'
-                    ? window.location.origin
-                    : 'http://localhost:8081';
-            } else {
-                // On native, use the app deep link scheme
-                redirectUrl = 'pingponghub://';
-            }
+            console.log("OAuth Redirect URL:", redirectUrl);
 
             const { data, error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
@@ -167,7 +161,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
             if (error) throw error;
 
-            // For native, we need to manually open the browser
+            // For native, handle browser session
             if (Platform.OS !== 'web' && data?.url) {
                 const WebBrowser = require('expo-web-browser');
                 const result = await WebBrowser.openAuthSessionAsync(
@@ -175,9 +169,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                     redirectUrl
                 );
 
-                // Handle the result from WebBrowser
                 if (result.type === 'success' && result.url) {
-                    // Extract tokens from URL and set session
                     const url = new URL(result.url);
                     const accessToken = url.searchParams.get('access_token');
                     const refreshToken = url.searchParams.get('refresh_token');
@@ -231,7 +223,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             if (error) throw error;
 
             console.log("Profile fetched from DB:", data);
-            console.log("DB rating_mr:", data?.rating_mr);
+            console.log("DB rating_mr:", (data as any)?.rating_mr);
 
             set({ profile: data as Profile });
 

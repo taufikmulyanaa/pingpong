@@ -194,6 +194,19 @@ export default function CariScreen() {
 
     }, []);
 
+    // Calculate distance between two coordinates (Haversine formula)
+    const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+        const R = 6371; // Earth's radius in km
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    };
+
     const fetchPlayers = async () => {
         if (!profile?.id) return;
 
@@ -217,19 +230,62 @@ export default function CariScreen() {
                     break;
             }
 
-            const { data, error } = await supabase
+            // Build query - prioritize online users and those with location
+            let query = supabase
                 .from("profiles")
                 .select("*")
                 .neq("id", profile.id) // Exclude current user
                 .gte("rating_mr", minMR)
                 .lte("rating_mr", maxMR)
-                .limit(20);
+                .order("is_online", { ascending: false }) // Online users first
+                .order("last_active_at", { ascending: false, nullsFirst: false }) // Recently active next
+                .limit(50); // Get more to filter by distance
+
+            const { data, error } = await query;
 
             if (error) {
                 console.error("Error fetching players:", error);
                 setPlayers([]);
             } else if (data && data.length > 0) {
-                setPlayers(data);
+                // Filter by distance if user location is available
+                const typedData = data as Profile[];
+                let filteredPlayers: (Profile & { _distance?: number })[];
+
+                if (userLocation) {
+                    filteredPlayers = typedData
+                        .map(player => {
+                            // Calculate distance if player has location
+                            let playerDistance = 999; // Default far distance
+                            if (player.latitude && player.longitude) {
+                                playerDistance = calculateDistance(
+                                    userLocation.latitude,
+                                    userLocation.longitude,
+                                    player.latitude,
+                                    player.longitude
+                                );
+                            }
+                            return { ...player, _distance: playerDistance };
+                        })
+                        .filter(player => player._distance! <= distance) // Filter by max distance
+                        .sort((a, b) => {
+                            // Sort: online first, then by distance
+                            if (a.is_online && !b.is_online) return -1;
+                            if (!a.is_online && b.is_online) return 1;
+                            return (a._distance || 999) - (b._distance || 999);
+                        })
+                        .slice(0, 20); // Limit results
+                } else {
+                    // No user location, just sort by online status
+                    filteredPlayers = typedData
+                        .sort((a, b) => {
+                            if (a.is_online && !b.is_online) return -1;
+                            if (!a.is_online && b.is_online) return 1;
+                            return 0;
+                        })
+                        .slice(0, 20);
+                }
+
+                setPlayers(filteredPlayers);
             } else {
                 setPlayers([]);
             }
@@ -242,15 +298,15 @@ export default function CariScreen() {
         }
     };
 
-    // Fetch players from Supabase based on skill level
+    // Fetch players from Supabase based on skill level, distance and location
     useEffect(() => {
         fetchPlayers();
-    }, [skillLevel, profile?.id]);
+    }, [skillLevel, profile?.id, distance, userLocation]);
 
     const onRefresh = React.useCallback(() => {
         setRefreshing(true);
         fetchPlayers();
-    }, [skillLevel, profile?.id]);
+    }, [skillLevel, profile?.id, distance, userLocation]);
 
     const getSkillRange = () => {
         switch (skillLevel) {
@@ -387,11 +443,11 @@ export default function CariScreen() {
                         </View>
 
                         {players.length > 0 ? (
-                            players.map((player, index) => (
+                            players.map((player) => (
                                 <PlayerCard
                                     key={player.id}
                                     player={player}
-                                    distance={2.4 + index * 1.7} // Placeholder distance
+                                    distance={(player as any)._distance || 0}
                                     onInvite={() => handleInvite(player.id!)}
                                     onProfile={() => handleProfile(player.id!)}
                                 />

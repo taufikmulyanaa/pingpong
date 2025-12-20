@@ -13,6 +13,7 @@ import {
     KeyboardAvoidingView,
     Platform,
     Switch,
+    ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -21,6 +22,9 @@ import { Colors } from "../../src/lib/constants";
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from "../../src/lib/supabase";
 import { useAuthStore } from "../../src/stores/authStore";
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
+import { decode } from 'base64-arraybuffer';
 
 interface Club {
     id: string;
@@ -87,12 +91,73 @@ export default function ClubListScreen() {
         facilities: [] as string[],
     });
     const [isCreating, setIsCreating] = useState(false);
+    const [logoImage, setLogoImage] = useState<string | null>(null);
+    const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
     const bgColor = Colors.background;
     const cardColor = Colors.surface;
     const textColor = Colors.text;
     const mutedColor = Colors.muted;
     const borderColor = Colors.border;
+
+    // Pick logo image
+    const pickLogoImage = async () => {
+        try {
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+            });
+
+            if (!result.canceled && result.assets[0]) {
+                setLogoImage(result.assets[0].uri);
+            }
+        } catch (error) {
+            console.error("Error picking image:", error);
+            Alert.alert("Error", "Gagal memilih gambar");
+        }
+    };
+
+    // Upload logo to Supabase storage
+    const uploadLogo = async (clubId: string): Promise<string | null> => {
+        if (!logoImage) return null;
+
+        setIsUploadingLogo(true);
+        try {
+            const base64 = await FileSystem.readAsStringAsync(logoImage, {
+                encoding: 'base64',
+            });
+
+            const fileExt = logoImage.split('.').pop()?.toLowerCase() || 'jpg';
+            const fileName = `${clubId}/logo.${fileExt}`;
+            const contentType = fileExt === 'png' ? 'image/png' : 'image/jpeg';
+
+            const { data, error } = await supabase.storage
+                .from('club-logos')
+                .upload(fileName, decode(base64), {
+                    contentType,
+                    upsert: true,
+                });
+
+            if (error) {
+                console.error("Upload error:", error);
+                return null;
+            }
+
+            const { data: urlData } = supabase.storage
+                .from('club-logos')
+                .getPublicUrl(fileName);
+
+            return urlData?.publicUrl || null;
+        } catch (error) {
+            console.error("Error uploading logo:", error);
+            return null;
+        } finally {
+            setIsUploadingLogo(false);
+        }
+    };
+
 
     const fetchClubs = async () => {
         const { data, error } = await supabase
@@ -191,12 +256,25 @@ export default function ClubListScreen() {
             .select()
             .single();
 
-        setIsCreating(false);
-
         if (error) {
+            setIsCreating(false);
             console.error("Error creating club:", error);
             Alert.alert("Error", "Gagal membuat PTM. Silakan coba lagi.");
-        } else if (data) {
+            return;
+        }
+
+        if (data) {
+            // Upload logo if selected
+            if (logoImage) {
+                const logoUrl = await uploadLogo(data.id);
+                if (logoUrl) {
+                    // Update club with logo URL
+                    await (supabase.from("clubs") as any)
+                        .update({ logo_url: logoUrl })
+                        .eq("id", data.id);
+                }
+            }
+
             // Auto-add owner as member
             await (supabase.from("club_members") as any).insert({
                 club_id: data.id,
@@ -206,6 +284,7 @@ export default function ClubListScreen() {
                 joined_at: new Date().toISOString(),
             });
 
+            setIsCreating(false);
             Alert.alert("Berhasil", "PTM berhasil dibuat!");
             setShowCreateModal(false);
             resetForm();
@@ -231,6 +310,7 @@ export default function ClubListScreen() {
             pricePerHour: "",
             facilities: [],
         });
+        setLogoImage(null);
     };
 
     const toggleFacility = (facilityId: string) => {
@@ -398,6 +478,32 @@ export default function ClubListScreen() {
                                     <MaterialIcons name="info" size={20} color={Colors.primary} />
                                     <Text style={[styles.sectionTitle, { color: textColor }]}>Informasi Dasar</Text>
                                 </View>
+
+                                {/* Logo Upload */}
+                                <Text style={[styles.inputLabel, { color: textColor }]}>Logo PTM</Text>
+                                <TouchableOpacity
+                                    style={[styles.logoUploadContainer, { backgroundColor: cardColor, borderColor }]}
+                                    onPress={pickLogoImage}
+                                >
+                                    {logoImage ? (
+                                        <View style={styles.logoPreviewContainer}>
+                                            <Image source={{ uri: logoImage }} style={styles.logoPreview} />
+                                            <TouchableOpacity
+                                                style={styles.changeLogoBtn}
+                                                onPress={pickLogoImage}
+                                            >
+                                                <MaterialIcons name="edit" size={16} color="#fff" />
+                                            </TouchableOpacity>
+                                        </View>
+                                    ) : (
+                                        <View style={styles.logoPlaceholder}>
+                                            <MaterialIcons name="add-a-photo" size={32} color={mutedColor} />
+                                            <Text style={[styles.logoPlaceholderText, { color: mutedColor }]}>
+                                                Tambah Logo
+                                            </Text>
+                                        </View>
+                                    )}
+                                </TouchableOpacity>
 
                                 <Text style={[styles.inputLabel, { color: textColor }]}>Nama PTM *</Text>
                                 <TextInput
@@ -1002,5 +1108,45 @@ const styles = StyleSheet.create({
     facilityChipText: {
         fontSize: 13,
         fontWeight: "500",
+    },
+    // Logo Upload Styles
+    logoUploadContainer: {
+        borderWidth: 1,
+        borderStyle: 'dashed',
+        borderRadius: 16,
+        padding: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 16,
+    },
+    logoPreviewContainer: {
+        position: 'relative',
+    },
+    logoPreview: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+    },
+    changeLogoBtn: {
+        position: 'absolute',
+        bottom: 0,
+        right: 0,
+        backgroundColor: Colors.primary,
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 3,
+        borderColor: '#fff',
+    },
+    logoPlaceholder: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+    },
+    logoPlaceholderText: {
+        fontSize: 14,
+        fontWeight: '500',
     },
 });

@@ -1,9 +1,11 @@
 // Presence Hook
 // Track online/offline status using Supabase Presence
+// Also updates user location when online
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "../lib/supabase";
-import { AppState, AppStateStatus } from "react-native";
+import { AppState, AppStateStatus, Platform } from "react-native";
+import * as Location from "expo-location";
 
 interface PresenceState {
     user_id: string;
@@ -23,14 +25,51 @@ export function usePresence(currentUserId: string): UsePresenceReturn {
     );
     const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
     const appState = useRef<AppStateStatus>(AppState.currentState);
+    const locationUpdateIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    // Update user location in database
+    const updateUserLocation = useCallback(async () => {
+        if (!currentUserId) return;
+
+        try {
+            // Request location permission
+            const { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') {
+                console.log('Location permission denied');
+                return;
+            }
+
+            // Get current position
+            const location = await Location.getCurrentPositionAsync({
+                accuracy: Location.Accuracy.Balanced,
+            });
+
+            // Update profile with location
+            const { error } = await (supabase
+                .from("profiles") as any)
+                .update({
+                    latitude: location.coords.latitude,
+                    longitude: location.coords.longitude,
+                })
+                .eq("id", currentUserId);
+
+            if (error) {
+                console.error("Error updating location:", error);
+            } else {
+                console.log("Location updated:", location.coords.latitude, location.coords.longitude);
+            }
+        } catch (error) {
+            console.error("Error getting location:", error);
+        }
+    }, [currentUserId]);
 
     // Update online status in database
     const updateDatabaseStatus = useCallback(
         async (isOnline: boolean) => {
             if (!currentUserId) return;
 
-            await supabase
-                .from("profiles")
+            await (supabase
+                .from("profiles") as any)
                 .update({
                     is_online: isOnline,
                     last_active_at: new Date().toISOString(),
@@ -83,7 +122,7 @@ export function usePresence(currentUserId: string): UsePresenceReturn {
                 if (newPresences.length > 0) {
                     setOnlineUsers((prev) => {
                         const updated = new Map(prev);
-                        updated.set(key, newPresences[0] as PresenceState);
+                        updated.set(key, newPresences[0] as unknown as PresenceState);
                         return updated;
                     });
                 }
@@ -106,6 +145,17 @@ export function usePresence(currentUserId: string): UsePresenceReturn {
 
                     // Update database
                     await updateDatabaseStatus(true);
+
+                    // Update location when coming online (native only)
+                    if (Platform.OS !== 'web') {
+                        await updateUserLocation();
+
+                        // Set up periodic location updates every 2 minutes
+                        // Balance between accuracy and battery consumption
+                        locationUpdateIntervalRef.current = setInterval(() => {
+                            updateUserLocation();
+                        }, 2 * 60 * 1000); // 2 minutes
+                    }
                 }
             });
 
@@ -120,6 +170,11 @@ export function usePresence(currentUserId: string): UsePresenceReturn {
                 // App came to foreground
                 setStatus("online");
                 await updateDatabaseStatus(true);
+
+                // Update location when coming back to foreground
+                if (Platform.OS !== 'web') {
+                    await updateUserLocation();
+                }
             } else if (nextAppState.match(/inactive|background/)) {
                 // App went to background
                 setStatus("away");
@@ -136,13 +191,20 @@ export function usePresence(currentUserId: string): UsePresenceReturn {
         // Cleanup
         return () => {
             subscription.remove();
+
+            // Clear location update interval
+            if (locationUpdateIntervalRef.current) {
+                clearInterval(locationUpdateIntervalRef.current);
+                locationUpdateIntervalRef.current = null;
+            }
+
             if (channelRef.current) {
                 channelRef.current.untrack();
                 supabase.removeChannel(channelRef.current);
             }
             updateDatabaseStatus(false);
         };
-    }, [currentUserId, updateDatabaseStatus, setStatus]);
+    }, [currentUserId, updateDatabaseStatus, setStatus, updateUserLocation]);
 
     const isOnline = useCallback(
         (userId: string): boolean => {
@@ -154,3 +216,4 @@ export function usePresence(currentUserId: string): UsePresenceReturn {
 
     return { onlineUsers, isOnline, setStatus };
 }
+

@@ -10,6 +10,7 @@ import {
     ScrollView,
     Alert,
     ActivityIndicator,
+    Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -85,9 +86,11 @@ export default function LoginScreen() {
                 >
                     {/* Logo & Header */}
                     <View style={styles.header}>
-                        <View style={styles.logo}>
-                            <MaterialIcons name="sports-tennis" size={48} color="#fff" />
-                        </View>
+                        <Image
+                            source={require('../../assets/logo.png')}
+                            style={styles.logoImage}
+                            resizeMode="contain"
+                        />
                         <Text style={[styles.title, { color: textColor }]}>PingpongHub</Text>
                         <Text style={[styles.subtitle, { color: mutedColor }]}>
                             Masuk ke akun kamu untuk melanjutkan
@@ -220,13 +223,9 @@ const styles = StyleSheet.create({
         alignItems: "center",
         marginBottom: 40,
     },
-    logo: {
-        width: 80,
-        height: 80,
-        borderRadius: 20,
-        backgroundColor: Colors.primary,
-        justifyContent: "center",
-        alignItems: "center",
+    logoImage: {
+        width: 100,
+        height: 100,
         marginBottom: 16,
     },
     title: {

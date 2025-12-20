@@ -14,6 +14,7 @@ import {
     Modal,
     TextInput,
     Image,
+    FlatList,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -23,6 +24,21 @@ import { Colors, SharedStyles, ExtendedColors } from "../src/lib/constants";
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from "../src/lib/supabase";
 import { useAuthStore } from "../src/stores/authStore";
+
+interface Club {
+    id: string;
+    name: string;
+    city: string | null;
+    address: string | null;
+}
+
+interface OnlineUser {
+    id: string;
+    name: string;
+    avatar_url: string | null;
+    rating_mr: number;
+    is_online: boolean;
+}
 
 export default function ScanQRScreen() {
     const router = useRouter();
@@ -44,6 +60,20 @@ export default function ScanQRScreen() {
     const [matchScores, setMatchScores] = useState<{ me: string; opp: string }[]>(Array(5).fill({ me: "", opp: "" }));
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+    // Club Check-in State
+    const [showClubModal, setShowClubModal] = useState(false);
+    const [clubs, setClubs] = useState<Club[]>([]);
+    const [isLoadingClubs, setIsLoadingClubs] = useState(false);
+
+    // Online Users State
+    const [showUserModal, setShowUserModal] = useState(false);
+    const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
+    const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+    const [userSearchQuery, setUserSearchQuery] = useState("");
+
+    // My QR Code State
+    const [showMyQR, setShowMyQR] = useState(false);
 
     // Live Scorer State
     const [activeSetIndex, setActiveSetIndex] = useState(0);
@@ -338,39 +368,110 @@ export default function ScanQRScreen() {
         setCurrentPointOpp(0);
     };
 
-    const handleSimulateScan = async (type: "venue" | "match") => {
-        if (isScanning) return;
-        setIsScanning(true);
-        setScanned(true);
+    // Fetch clubs for check-in
+    const fetchClubs = async () => {
+        setIsLoadingClubs(true);
+        try {
+            const { data, error } = await supabase
+                .from("clubs")
+                .select("id, name, city, address")
+                .order("name")
+                .limit(50);
 
-        // Simulate scanning delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        if (type === "venue") {
-            handleVenueCheckIn("00000000-0000-0000-0000-000000000001");
-        } else {
-            // Simulate User Scan (Opponent)
-            // Use mock data so simulation always works
-            setScannedOpponent({
-                id: "sim-opponent-id",
-                name: "Simulasi Lawan",
-                avatar_url: null,
-                rating_mr: 1350
-            });
-            setShowScoreModal(true);
-        }
-
-        if (Platform.OS === 'web') {
-            setIsScanning(false);
-            setScanned(false);
+            if (error) {
+                console.error("Error fetching clubs:", error);
+                Alert.alert("Error", "Gagal memuat daftar PTM");
+            } else {
+                setClubs(data || []);
+            }
+        } catch (error) {
+            console.error("Error:", error);
+        } finally {
+            setIsLoadingClubs(false);
         }
     };
 
-    // Helpers for Sim Button
-    const simulateReset = () => {
-        setIsScanning(false);
-        setScanned(false);
-    }
+    // Fetch online/recent users for on-the-spot match
+    const fetchOnlineUsers = async () => {
+        if (!profile?.id) return;
+
+        setIsLoadingUsers(true);
+        try {
+            const { data, error } = await supabase
+                .from("profiles")
+                .select("id, name, avatar_url, rating_mr, is_online")
+                .neq("id", profile.id)
+                .order("is_online", { ascending: false })
+                .order("last_active_at", { ascending: false, nullsFirst: false })
+                .limit(30);
+
+            if (error) {
+                console.error("Error fetching users:", error);
+                Alert.alert("Error", "Gagal memuat daftar pemain");
+            } else {
+                setOnlineUsers(data || []);
+            }
+        } catch (error) {
+            console.error("Error:", error);
+        } finally {
+            setIsLoadingUsers(false);
+        }
+    };
+
+    // Open Club Check-in Modal
+    const handleOpenClubCheckIn = () => {
+        setShowClubModal(true);
+        fetchClubs();
+    };
+
+    // Open Online Users Modal for On-the-spot Match
+    const handleOpenOnTheSpot = () => {
+        setShowUserModal(true);
+        fetchOnlineUsers();
+    };
+
+    // Check-in to selected club
+    const handleClubCheckIn = async (club: Club) => {
+        if (!profile) {
+            Alert.alert("Error", "Anda harus login untuk check-in");
+            return;
+        }
+
+        try {
+            await (supabase.from("profiles") as any)
+                .update({
+                    last_venue_id: club.id,
+                    last_check_in: new Date().toISOString(),
+                })
+                .eq("id", profile.id);
+
+            setShowClubModal(false);
+            Alert.alert(
+                "Check-in Berhasil! ✅",
+                `Anda berhasil check-in di ${club.name}${club.city ? `, ${club.city}` : ""}`,
+                [{ text: "OK", onPress: () => router.back() }]
+            );
+        } catch (error) {
+            console.error("Check-in error:", error);
+            Alert.alert("Error", "Gagal melakukan check-in. Silakan coba lagi.");
+        }
+    };
+
+    // Select user for on-the-spot match
+    const handleSelectOpponent = (user: OnlineUser) => {
+        setScannedOpponent(user);
+        setShowUserModal(false);
+        setShowScoreModal(true);
+    };
+
+    // Filter users by search query
+    const filteredUsers = useMemo(() => {
+        if (!userSearchQuery.trim()) return onlineUsers;
+        const query = userSearchQuery.toLowerCase();
+        return onlineUsers.filter(user =>
+            user.name?.toLowerCase().includes(query)
+        );
+    }, [onlineUsers, userSearchQuery]);
 
     if (!permission) {
         // Camera permissions are still loading.
@@ -417,13 +518,16 @@ export default function ScanQRScreen() {
                     {Platform.OS === 'web' ? (
                         <View style={[styles.webCameraPlaceholder, { backgroundColor: '#000' }]}>
                             <Text style={{ color: '#fff' }}>Kamera tidak tersedia di preview web.</Text>
-                            <Text style={{ color: '#aaa', fontSize: 12, marginTop: 8 }}>Gunakan "Simulasi Scan" di bawah.</Text>
+                            <Text style={{ color: '#aaa', fontSize: 12, marginTop: 8 }}>Gunakan opsi di bawah untuk check-in atau pilih lawan.</Text>
                         </View>
                     ) : (
                         <>
                             <CameraView
                                 style={styles.camera}
                                 facing="back"
+                                barcodeScannerSettings={{
+                                    barcodeTypes: ["qr"],
+                                }}
                                 onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
                             />
                             {/* Overlay needs to be absolutely positioned over the camera, not a child */}
@@ -437,7 +541,7 @@ export default function ScanQRScreen() {
                     )}
                 </View>
 
-                {/* Actions / Simulation for Dev or Backup */}
+                {/* Actions - Real Features */}
                 <View style={styles.actionsContainer}>
                     <View style={styles.dragHandle} />
                     <Text style={[styles.actionsTitle, { color: textColor }]}>Opsi Lain</Text>
@@ -445,34 +549,50 @@ export default function ScanQRScreen() {
                     <ScrollView style={{ maxHeight: 200 }}>
                         <TouchableOpacity
                             style={[styles.actionBtn, { backgroundColor: cardColor }]}
-                            onPress={() => handleSimulateScan("venue")}
-                            disabled={isScanning}
+                            onPress={handleOpenClubCheckIn}
                         >
                             <View style={[styles.actionIcon, { backgroundColor: `${Colors.primary}20` }]}>
                                 <MaterialIcons name="place" size={24} color={Colors.primary} />
                             </View>
                             <View style={styles.actionText}>
-                                <Text style={[styles.actionTitle, { color: textColor }]}>Simulasi Check-in</Text>
+                                <Text style={[styles.actionTitle, { color: textColor }]}>Check-in PTM</Text>
                                 <Text style={[styles.actionSubtitle, { color: mutedColor }]}>
-                                    Demo check-in venue
+                                    Pilih PTM untuk check-in
                                 </Text>
                             </View>
+                            <MaterialIcons name="chevron-right" size={24} color={mutedColor} />
                         </TouchableOpacity>
 
                         <TouchableOpacity
                             style={[styles.actionBtn, { backgroundColor: cardColor }]}
-                            onPress={() => handleSimulateScan("match")}
-                            disabled={isScanning}
+                            onPress={handleOpenOnTheSpot}
                         >
-                            <View style={[styles.actionIcon, { backgroundColor: `${Colors.primary}20` }]}>
-                                <MaterialIcons name="qr-code-scanner" size={24} color={Colors.primary} />
+                            <View style={[styles.actionIcon, { backgroundColor: `#10B98120` }]}>
+                                <MaterialIcons name="person-add" size={24} color="#10B981" />
                             </View>
                             <View style={styles.actionText}>
-                                <Text style={[styles.actionTitle, { color: textColor }]}>Simulasi On-the-spot</Text>
+                                <Text style={[styles.actionTitle, { color: textColor }]}>Pilih Lawan</Text>
                                 <Text style={[styles.actionSubtitle, { color: mutedColor }]}>
-                                    Demo scan lawan & score
+                                    Main langsung tanpa scan QR
                                 </Text>
                             </View>
+                            <MaterialIcons name="chevron-right" size={24} color={mutedColor} />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.actionBtn, { backgroundColor: cardColor, borderColor: Colors.primary, borderWidth: 1 }]}
+                            onPress={() => setShowMyQR(true)}
+                        >
+                            <View style={[styles.actionIcon, { backgroundColor: `${Colors.primary}20` }]}>
+                                <MaterialIcons name="qr-code" size={24} color={Colors.primary} />
+                            </View>
+                            <View style={styles.actionText}>
+                                <Text style={[styles.actionTitle, { color: textColor }]}>QR Saya</Text>
+                                <Text style={[styles.actionSubtitle, { color: mutedColor }]}>
+                                    Tunjukkan ke lawan untuk match
+                                </Text>
+                            </View>
+                            <MaterialIcons name="chevron-right" size={24} color={mutedColor} />
                         </TouchableOpacity>
 
                         {scanned && (
@@ -490,6 +610,167 @@ export default function ScanQRScreen() {
                         )}
                     </ScrollView>
                 </View>
+
+                {/* My QR Code Modal */}
+                <Modal
+                    visible={showMyQR}
+                    transparent={true}
+                    animationType="fade"
+                    onRequestClose={() => setShowMyQR(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={[styles.myQRModal, { backgroundColor: cardColor }]}>
+                            <Text style={[styles.myQRTitle, { color: textColor }]}>QR Code Saya</Text>
+
+                            <View style={styles.myQRContainer}>
+                                <Image
+                                    style={styles.myQRImage}
+                                    source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=u:${profile?.id}` }}
+                                />
+                            </View>
+
+                            <Text style={[styles.myQRDesc, { color: mutedColor }]}>
+                                Tunjukkan QR Code ini ke lawan untuk memulai match on-the-spot
+                            </Text>
+
+                            <TouchableOpacity
+                                style={[styles.myQRCloseBtn, { backgroundColor: Colors.primary }]}
+                                onPress={() => setShowMyQR(false)}
+                            >
+                                <Text style={styles.myQRCloseBtnText}>Tutup</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Club Check-in Modal */}
+                <Modal
+                    visible={showClubModal}
+                    transparent={true}
+                    animationType="slide"
+                    onRequestClose={() => setShowClubModal(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={[styles.selectionModal, { backgroundColor: bgColor }]}>
+                            <View style={styles.selectionHeader}>
+                                <Text style={[styles.selectionTitle, { color: textColor }]}>Pilih PTM</Text>
+                                <TouchableOpacity onPress={() => setShowClubModal(false)}>
+                                    <MaterialIcons name="close" size={24} color={mutedColor} />
+                                </TouchableOpacity>
+                            </View>
+
+                            {isLoadingClubs ? (
+                                <View style={styles.loadingContainer}>
+                                    <ActivityIndicator size="large" color={Colors.primary} />
+                                    <Text style={[styles.loadingText, { color: mutedColor }]}>Memuat daftar PTM...</Text>
+                                </View>
+                            ) : clubs.length === 0 ? (
+                                <View style={styles.emptyContainer}>
+                                    <MaterialIcons name="store" size={48} color={mutedColor} />
+                                    <Text style={[styles.emptyText, { color: mutedColor }]}>Belum ada PTM terdaftar</Text>
+                                </View>
+                            ) : (
+                                <FlatList
+                                    data={clubs}
+                                    keyExtractor={(item) => item.id}
+                                    renderItem={({ item }) => (
+                                        <TouchableOpacity
+                                            style={[styles.selectionItem, { backgroundColor: cardColor }]}
+                                            onPress={() => handleClubCheckIn(item)}
+                                        >
+                                            <View style={[styles.selectionIcon, { backgroundColor: `${Colors.primary}20` }]}>
+                                                <MaterialIcons name="store" size={24} color={Colors.primary} />
+                                            </View>
+                                            <View style={styles.selectionInfo}>
+                                                <Text style={[styles.selectionName, { color: textColor }]}>{item.name}</Text>
+                                                <Text style={[styles.selectionSub, { color: mutedColor }]}>
+                                                    {item.city || item.address || "Lokasi tidak tersedia"}
+                                                </Text>
+                                            </View>
+                                            <MaterialIcons name="check-circle-outline" size={24} color={Colors.primary} />
+                                        </TouchableOpacity>
+                                    )}
+                                    contentContainerStyle={{ paddingBottom: 20 }}
+                                />
+                            )}
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Online Users Modal */}
+                <Modal
+                    visible={showUserModal}
+                    transparent={true}
+                    animationType="slide"
+                    onRequestClose={() => setShowUserModal(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={[styles.selectionModal, { backgroundColor: bgColor }]}>
+                            <View style={styles.selectionHeader}>
+                                <Text style={[styles.selectionTitle, { color: textColor }]}>Pilih Lawan</Text>
+                                <TouchableOpacity onPress={() => setShowUserModal(false)}>
+                                    <MaterialIcons name="close" size={24} color={mutedColor} />
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* Search Input */}
+                            <View style={[styles.searchContainer, { backgroundColor: cardColor }]}>
+                                <MaterialIcons name="search" size={20} color={mutedColor} />
+                                <TextInput
+                                    style={[styles.searchInput, { color: textColor }]}
+                                    placeholder="Cari nama pemain..."
+                                    placeholderTextColor={mutedColor}
+                                    value={userSearchQuery}
+                                    onChangeText={setUserSearchQuery}
+                                />
+                            </View>
+
+                            {isLoadingUsers ? (
+                                <View style={styles.loadingContainer}>
+                                    <ActivityIndicator size="large" color={Colors.primary} />
+                                    <Text style={[styles.loadingText, { color: mutedColor }]}>Memuat daftar pemain...</Text>
+                                </View>
+                            ) : filteredUsers.length === 0 ? (
+                                <View style={styles.emptyContainer}>
+                                    <MaterialIcons name="person-search" size={48} color={mutedColor} />
+                                    <Text style={[styles.emptyText, { color: mutedColor }]}>Tidak ada pemain ditemukan</Text>
+                                </View>
+                            ) : (
+                                <FlatList
+                                    data={filteredUsers}
+                                    keyExtractor={(item) => item.id}
+                                    renderItem={({ item }) => (
+                                        <TouchableOpacity
+                                            style={[styles.selectionItem, { backgroundColor: cardColor }]}
+                                            onPress={() => handleSelectOpponent(item)}
+                                        >
+                                            <Image
+                                                source={{ uri: item.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name || "User")}&background=random` }}
+                                                style={styles.userAvatar}
+                                            />
+                                            <View style={styles.selectionInfo}>
+                                                <View style={styles.userNameRow}>
+                                                    <Text style={[styles.selectionName, { color: textColor }]}>{item.name}</Text>
+                                                    {item.is_online && (
+                                                        <View style={styles.onlineBadge}>
+                                                            <View style={styles.onlineDot} />
+                                                            <Text style={styles.onlineText}>Online</Text>
+                                                        </View>
+                                                    )}
+                                                </View>
+                                                <Text style={[styles.selectionSub, { color: mutedColor }]}>
+                                                    MR {item.rating_mr || 1000}
+                                                </Text>
+                                            </View>
+                                            <MaterialIcons name="sports-tennis" size={24} color={Colors.primary} />
+                                        </TouchableOpacity>
+                                    )}
+                                    contentContainerStyle={{ paddingBottom: 20 }}
+                                />
+                            )}
+                        </View>
+                    </View>
+                </Modal>
 
                 {/* Scoreboard Modal */}
                 <Modal
@@ -1024,4 +1305,155 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
+    // Selection Modal Styles
+    selectionModal: {
+        width: '90%',
+        maxHeight: '80%',
+        borderRadius: 24,
+        padding: 20,
+    },
+    selectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    selectionTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+    },
+    selectionItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        borderRadius: 16,
+        marginBottom: 10,
+    },
+    selectionIcon: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    selectionInfo: {
+        flex: 1,
+    },
+    selectionName: {
+        fontSize: 16,
+        fontWeight: '600',
+        marginBottom: 4,
+    },
+    selectionSub: {
+        fontSize: 12,
+    },
+    loadingContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 60,
+    },
+    loadingText: {
+        marginTop: 12,
+        fontSize: 14,
+    },
+    emptyContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 60,
+    },
+    emptyText: {
+        marginTop: 12,
+        fontSize: 14,
+        textAlign: 'center',
+    },
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderRadius: 12,
+        marginBottom: 16,
+    },
+    searchInput: {
+        flex: 1,
+        marginLeft: 12,
+        fontSize: 16,
+    },
+    userAvatar: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        marginRight: 12,
+    },
+    userNameRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    onlineBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#10B98115',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 10,
+    },
+    onlineDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: '#10B981',
+        marginRight: 4,
+    },
+    onlineText: {
+        fontSize: 10,
+        color: '#10B981',
+        fontWeight: '600',
+    },
+    // My QR Code Styles
+    myQRModal: {
+        width: '85%',
+        borderRadius: 24,
+        padding: 30,
+        alignItems: 'center',
+    },
+    myQRTitle: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        marginBottom: 24,
+    },
+    myQRContainer: {
+        padding: 16,
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 8,
+    },
+    myQRImage: {
+        width: 220,
+        height: 220,
+    },
+    myQRDesc: {
+        textAlign: 'center',
+        marginTop: 24,
+        fontSize: 14,
+        lineHeight: 20,
+        paddingHorizontal: 10,
+    },
+    myQRCloseBtn: {
+        marginTop: 24,
+        paddingVertical: 14,
+        paddingHorizontal: 40,
+        borderRadius: 100,
+    },
+    myQRCloseBtnText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
+    },
 });
+

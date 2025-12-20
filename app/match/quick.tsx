@@ -370,18 +370,16 @@ export default function QuickMatchScreen() {
                                     <MaterialIcons name="chevron-right" size={24} color={mutedColor} />
                                 </TouchableOpacity>
 
-
-
                                 <TouchableOpacity
                                     style={[styles.modeCard, { backgroundColor: cardColor, borderColor: "rgba(0,0,0,0.05)", borderWidth: 1 }]}
-                                    onPress={() => router.push("/scan")}
+                                    onPress={() => handleStartSearch("FRIENDLY")}
                                 >
-                                    <View style={[styles.modeIcon, { backgroundColor: "#ECFDF5" }]}>
-                                        <MaterialIcons name="qr-code-scanner" size={32} color="#10B981" />
+                                    <View style={[styles.modeIcon, { backgroundColor: "#EEF2FF" }]}>
+                                        <MaterialIcons name="sports-tennis" size={32} color="#6366F1" />
                                     </View>
                                     <View style={styles.modeInfo}>
-                                        <Text style={[styles.modeTitle, { color: textColor }]}>On the spot Match</Text>
-                                        <Text style={[styles.modeSub, { color: mutedColor }]}>Main langsung via Scan QR</Text>
+                                        <Text style={[styles.modeTitle, { color: textColor }]}>Friendly Match</Text>
+                                        <Text style={[styles.modeSub, { color: mutedColor }]}>Latihan tanpa pengaruh MR</Text>
                                     </View>
                                     <MaterialIcons name="chevron-right" size={24} color={mutedColor} />
                                 </TouchableOpacity>
