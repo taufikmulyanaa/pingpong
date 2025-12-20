@@ -22,6 +22,7 @@ import { Colors } from "../../src/lib/constants";
 import { supabase } from "../../src/lib/supabase";
 import { useAuthStore } from "../../src/stores/authStore";
 import { useTournamentStore } from "../../src/stores/tournamentStore";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import {
     generateSingleElimBracket,
     generateDoubleElimBracket,
@@ -88,6 +89,13 @@ export default function BracketGeneratorScreen() {
     const [editRefereeId, setEditRefereeId] = useState("");
     const [referees, setReferees] = useState<Participant[]>([]);
     const [updatingMatch, setUpdatingMatch] = useState(false);
+
+    // DateTimePicker states
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [scheduledDate, setScheduledDate] = useState<Date>(new Date());
+
+    // Referee picker state
+    const [showRefereePicker, setShowRefereePicker] = useState(false);
 
     // Double elim bracket tab
     const [bracketTab, setBracketTab] = useState<'winners' | 'losers' | 'grand'>('winners');
@@ -960,15 +968,73 @@ export default function BracketGeneratorScreen() {
                                     placeholderTextColor={mutedColor}
                                 />
 
-                                {/* Scheduled Time (simple text for now) */}
-                                <Text style={[styles.inputLabel, { color: textColor }]}>Jadwal (Format: YYYY-MM-DD HH:MM)</Text>
-                                <TextInput
-                                    style={[styles.input, { backgroundColor: cardColor, color: textColor }]}
-                                    value={editScheduledTime}
-                                    onChangeText={setEditScheduledTime}
-                                    placeholder="2024-12-20 10:00"
-                                    placeholderTextColor={mutedColor}
-                                />
+                                {/* Scheduled Time with DateTimePicker */}
+                                <Text style={[styles.inputLabel, { color: textColor }]}>Jadwal Pertandingan</Text>
+                                <TouchableOpacity
+                                    style={[styles.datePickerBtn, { backgroundColor: cardColor, borderColor }]}
+                                    onPress={() => setShowDatePicker(true)}
+                                >
+                                    <MaterialIcons name="schedule" size={20} color={Colors.primary} />
+                                    <Text style={{ color: editScheduledTime ? textColor : mutedColor, flex: 1 }}>
+                                        {editScheduledTime
+                                            ? new Date(editScheduledTime).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })
+                                            : "Pilih tanggal & waktu"
+                                        }
+                                    </Text>
+                                </TouchableOpacity>
+                                {showDatePicker && (
+                                    <DateTimePicker
+                                        value={scheduledDate}
+                                        mode="datetime"
+                                        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                                        onChange={(event, date) => {
+                                            setShowDatePicker(Platform.OS === 'ios');
+                                            if (date) {
+                                                setScheduledDate(date);
+                                                setEditScheduledTime(date.toISOString());
+                                            }
+                                        }}
+                                    />
+                                )}
+
+                                {/* Referee Picker */}
+                                <Text style={[styles.inputLabel, { color: textColor }]}>Wasit</Text>
+                                <TouchableOpacity
+                                    style={[styles.datePickerBtn, { backgroundColor: cardColor, borderColor }]}
+                                    onPress={() => setShowRefereePicker(!showRefereePicker)}
+                                >
+                                    <MaterialIcons name="person" size={20} color={Colors.primary} />
+                                    <Text style={{ color: editRefereeId ? textColor : mutedColor, flex: 1 }}>
+                                        {editRefereeId
+                                            ? referees.find(r => r.id === editRefereeId)?.name || "Wasit dipilih"
+                                            : "Pilih wasit"
+                                        }
+                                    </Text>
+                                    <MaterialIcons name={showRefereePicker ? "expand-less" : "expand-more"} size={20} color={mutedColor} />
+                                </TouchableOpacity>
+                                {showRefereePicker && (
+                                    <View style={[styles.refereeList, { backgroundColor: cardColor, borderColor }]}>
+                                        {referees.length === 0 ? (
+                                            <Text style={{ color: mutedColor, padding: 12 }}>Tidak ada wasit tersedia</Text>
+                                        ) : (
+                                            referees.map(referee => (
+                                                <TouchableOpacity
+                                                    key={referee.id}
+                                                    style={[styles.refereeItem, { borderBottomColor: borderColor }]}
+                                                    onPress={() => {
+                                                        setEditRefereeId(referee.id);
+                                                        setShowRefereePicker(false);
+                                                    }}
+                                                >
+                                                    <Text style={[styles.refereeName, { color: textColor }]}>{referee.name}</Text>
+                                                    {editRefereeId === referee.id && (
+                                                        <MaterialIcons name="check" size={18} color={Colors.primary} />
+                                                    )}
+                                                </TouchableOpacity>
+                                            ))
+                                        )}
+                                    </View>
+                                )}
 
                                 {/* Action Buttons */}
                                 <View style={styles.modalActions}>
@@ -1089,4 +1155,10 @@ const styles = StyleSheet.create({
     championText: { fontSize: 16, fontWeight: "bold", textAlign: "center", color: "#D97706" },
     // Empty bracket
     emptyBracket: { flex: 1, justifyContent: "center", alignItems: "center", padding: 40 },
+    // DateTimePicker button
+    datePickerBtn: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 10, borderWidth: 1 },
+    // Referee picker
+    refereeList: { marginTop: 4, borderRadius: 10, borderWidth: 1, maxHeight: 200, overflow: "hidden" },
+    refereeItem: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 12, borderBottomWidth: 1 },
+    refereeName: { fontSize: 14 },
 });

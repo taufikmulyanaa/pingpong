@@ -9,6 +9,8 @@ import {
     ActivityIndicator,
     Alert,
     RefreshControl,
+    Share,
+    Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -61,6 +63,20 @@ export default function TournamentDetailScreen() {
     const [registering, setRegistering] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showNotifications, setShowNotifications] = useState(false);
+    const [showShareModal, setShowShareModal] = useState(false);
+
+    // Handle share tournament
+    const handleShareTournament = async () => {
+        if (!tournament) return;
+        try {
+            await Share.share({
+                title: tournament.name,
+                message: `🏓 ${tournament.name}\n\n📅 ${new Date(tournament.start_date).toLocaleDateString('id-ID')}\n🏆 Hadiah: Rp ${(tournament.prize_pool || 0).toLocaleString('id-ID')}\n👥 Peserta: ${participants.length}/${tournament.max_participants}\n\nDaftar sekarang di PingpongHub!`,
+            });
+        } catch (error) {
+            console.error("Share error:", error);
+        }
+    };
 
     // Check if user is the organizer
     const isOrganizer = tournament?.organizer_id === user?.id;
