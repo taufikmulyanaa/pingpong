@@ -84,6 +84,40 @@ export default function EditTournamentScreen() {
     const [popupType, setPopupType] = useState<"success" | "error">("success");
     const [popupMessage, setPopupMessage] = useState("");
 
+    // Delete confirmation modal
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    // Handle delete tournament
+    const handleDeleteTournament = async () => {
+        if (!id) return;
+
+        setIsDeleting(true);
+        try {
+            const { error } = await supabase
+                .from("tournaments")
+                .delete()
+                .eq("id", id);
+
+            if (error) throw error;
+
+            setShowDeleteModal(false);
+            if (Platform.OS === 'web') {
+                alert("Turnamen berhasil dihapus!");
+                router.replace("/tournament");
+            } else {
+                Alert.alert("Berhasil!", "Turnamen berhasil dihapus!", [
+                    { text: "OK", onPress: () => router.replace("/tournament") }
+                ]);
+            }
+        } catch (error) {
+            console.error("Delete error:", error);
+            showAlert("Error", "Gagal menghapus turnamen");
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     // Cross-platform alert function
     const showAlert = (title: string, message: string, isSuccess: boolean = false) => {
         if (Platform.OS === 'web') {
@@ -500,24 +534,73 @@ export default function EditTournamentScreen() {
                     <View style={{ height: 100 }} />
                 </ScrollView>
 
-                {/* Submit Button */}
+                {/* Action Buttons */}
                 <View style={[styles.bottomAction, { backgroundColor: bgColor, borderTopColor: borderColor }]}>
-                    <TouchableOpacity
-                        style={[styles.submitBtn, { backgroundColor: Colors.primary }]}
-                        onPress={handleSubmit}
-                        disabled={isSubmitting}
-                    >
-                        {isSubmitting ? (
-                            <ActivityIndicator size="small" color="#fff" />
-                        ) : (
-                            <>
-                                <MaterialIcons name="save" size={20} color="#fff" />
-                                <Text style={styles.submitBtnText}>Simpan Perubahan</Text>
-                            </>
-                        )}
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: "row", gap: 12 }}>
+                        {/* Delete Button */}
+                        <TouchableOpacity
+                            style={[styles.deleteBtn, { borderColor: "#EF4444" }]}
+                            onPress={() => setShowDeleteModal(true)}
+                        >
+                            <MaterialIcons name="delete" size={20} color="#EF4444" />
+                            <Text style={styles.deleteBtnText}>Hapus</Text>
+                        </TouchableOpacity>
+
+                        {/* Save Button */}
+                        <TouchableOpacity
+                            style={[styles.submitBtn, { backgroundColor: Colors.primary, flex: 1 }]}
+                            onPress={handleSubmit}
+                            disabled={isSubmitting}
+                        >
+                            {isSubmitting ? (
+                                <ActivityIndicator size="small" color="#fff" />
+                            ) : (
+                                <>
+                                    <MaterialIcons name="save" size={20} color="#fff" />
+                                    <Text style={styles.submitBtnText}>Simpan Perubahan</Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </SafeAreaView>
+
+            {/* Delete Confirmation Modal */}
+            <Modal
+                visible={showDeleteModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowDeleteModal(false)}
+            >
+                <View style={styles.popupOverlay}>
+                    <View style={[styles.popupContainer, { backgroundColor: cardColor }]}>
+                        <MaterialIcons name="warning" size={48} color="#EF4444" />
+                        <Text style={[styles.popupTitle, { color: textColor }]}>Hapus Turnamen?</Text>
+                        <Text style={[styles.popupMessage, { color: mutedColor }]}>
+                            Tindakan ini tidak dapat dibatalkan. Semua data peserta dan pertandingan akan dihapus.
+                        </Text>
+                        <View style={{ flexDirection: "row", gap: 12, marginTop: 20 }}>
+                            <TouchableOpacity
+                                style={[styles.popupButton, { backgroundColor: "#E5E7EB" }]}
+                                onPress={() => setShowDeleteModal(false)}
+                            >
+                                <Text style={[styles.popupButtonText, { color: "#374151" }]}>Batal</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.popupButton, { backgroundColor: "#EF4444" }]}
+                                onPress={handleDeleteTournament}
+                                disabled={isDeleting}
+                            >
+                                {isDeleting ? (
+                                    <ActivityIndicator size="small" color="#fff" />
+                                ) : (
+                                    <Text style={styles.popupButtonText}>Hapus</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
 
             {/* Popup Modal for Web */}
             <Modal
@@ -598,4 +681,7 @@ const styles = StyleSheet.create({
     popupMessage: { fontSize: 14, marginTop: 8, textAlign: "center" },
     popupButton: { marginTop: 20, paddingHorizontal: 32, paddingVertical: 12, borderRadius: 8 },
     popupButtonText: { color: "#fff", fontSize: 14, fontWeight: "600" },
+    // Delete button styles
+    deleteBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", padding: 16, borderRadius: 12, gap: 8, borderWidth: 2, backgroundColor: "transparent" },
+    deleteBtnText: { color: "#EF4444", fontSize: 14, fontWeight: "600" },
 });

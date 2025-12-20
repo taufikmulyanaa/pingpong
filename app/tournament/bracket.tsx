@@ -515,70 +515,95 @@ export default function BracketGeneratorScreen() {
     // Render bracket view
     const renderBracket = () => {
         const totalRounds = bracket.length;
+        const currentBracket = bracketTab === 'losers' ? losersBracket : bracket;
+        const currentTotalRounds = currentBracket.length;
+
+        // Render Grand Final tab
+        if (bracketTab === 'grand' && grandFinal) {
+            return (
+                <View style={styles.grandFinalContainer}>
+                    <View style={[styles.grandFinalCard, { backgroundColor: cardColor }]}>
+                        <Text style={styles.grandFinalTitle}>🏆 GRAND FINAL 🏆</Text>
+                        <TouchableOpacity
+                            style={[styles.matchCard, { backgroundColor: bgColor, borderColor }]}
+                            onPress={() => openMatchEditModal(grandFinal)}
+                        >
+                            {grandFinal.player1 && grandFinal.player2 && !grandFinal.winner && (grandFinal.score1 > 0 || grandFinal.score2 > 0) && (
+                                <Animated.View style={[styles.liveBadge, { opacity: pulseAnim }]}>
+                                    <Text style={styles.liveText}>● LIVE</Text>
+                                </Animated.View>
+                            )}
+                            <View style={[styles.matchPlayer, { borderBottomColor: borderColor }]}>
+                                <Text style={[styles.playerName, { color: grandFinal.player1 ? textColor : mutedColor }, grandFinal.winner?.id === grandFinal.player1?.id && styles.winnerText]}>
+                                    👑 {grandFinal.player1?.name || "Winners Champion"}
+                                </Text>
+                                <Text style={[styles.playerScore, { color: textColor }]}>{grandFinal.score1 || 0}</Text>
+                            </View>
+                            <View style={styles.matchPlayer}>
+                                <Text style={[styles.playerName, { color: grandFinal.player2 ? textColor : mutedColor }, grandFinal.winner?.id === grandFinal.player2?.id && styles.winnerText]}>
+                                    🔄 {grandFinal.player2?.name || "Losers Champion"}
+                                </Text>
+                                <Text style={[styles.playerScore, { color: textColor }]}>{grandFinal.score2 || 0}</Text>
+                            </View>
+                        </TouchableOpacity>
+                        {grandFinal.winner && (
+                            <View style={styles.championBadge}>
+                                <Text style={styles.championText}>🎉 JUARA: {grandFinal.winner.name} 🎉</Text>
+                            </View>
+                        )}
+                    </View>
+                </View>
+            );
+        }
+
+        // Check if losers bracket is empty
+        if (bracketTab === 'losers' && losersBracket.length === 0) {
+            return (
+                <View style={styles.emptyBracket}>
+                    <MaterialIcons name="info-outline" size={48} color={mutedColor} />
+                    <Text style={{ color: mutedColor, marginTop: 12 }}>Losers bracket belum tersedia</Text>
+                </View>
+            );
+        }
 
         return (
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={styles.bracketContainer}>
-                    {bracket.map((round, roundIndex) => (
+                    {bracketTab === 'losers' && <Text style={styles.losersBracketLabel}>⬇️ LOSERS BRACKET ⬇️</Text>}
+                    {currentBracket.map((round, roundIndex) => (
                         <View key={roundIndex} style={styles.roundColumn}>
-                            <Text style={[styles.roundTitle, { color: textColor }]}>
-                                {getRoundName(roundIndex + 1, totalRounds)}
+                            <Text style={[styles.roundTitle, { color: bracketTab === 'losers' ? "#EF4444" : textColor }]}>
+                                {bracketTab === 'losers' ? `L-Round ${roundIndex + 1}` : getRoundName(roundIndex + 1, currentTotalRounds)}
                             </Text>
                             <View style={styles.matchesColumn}>
                                 {round.map((match) => (
                                     <TouchableOpacity
                                         key={match.id}
-                                        style={[styles.matchCard, { backgroundColor: cardColor, borderColor }]}
+                                        style={[styles.matchCard, { backgroundColor: cardColor, borderColor: bracketTab === 'losers' ? "#FECACA" : borderColor }]}
                                         onPress={() => isOrganizer && !match.isBye && openMatchEditModal(match)}
                                         disabled={!isOrganizer || match.isBye}
                                     >
-                                        {/* Time & Table indicator */}
                                         {(match.scheduledAt || match.tableNumber) && (
                                             <View style={styles.matchMeta}>
-                                                {match.scheduledAt && (
-                                                    <Text style={styles.matchTime}>
-                                                        {new Date(match.scheduledAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                                                    </Text>
-                                                )}
-                                                {match.tableNumber && (
-                                                    <Text style={styles.matchTable}>Meja {match.tableNumber}</Text>
-                                                )}
+                                                {match.scheduledAt && <Text style={styles.matchTime}>{new Date(match.scheduledAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</Text>}
+                                                {match.tableNumber && <Text style={styles.matchTable}>Meja {match.tableNumber}</Text>}
                                             </View>
                                         )}
                                         <View style={[styles.matchPlayer, { borderBottomColor: borderColor }]}>
-                                            <Text style={[
-                                                styles.playerName,
-                                                { color: !match.player1 || match.isBye ? mutedColor : textColor },
-                                                match.winner?.id === match.player1?.id && styles.winnerText
-                                            ]}>
+                                            <Text style={[styles.playerName, { color: !match.player1 || match.isBye ? mutedColor : textColor }, match.winner?.id === match.player1?.id && styles.winnerText]}>
                                                 {match.player1?.name || "TBD"}
                                             </Text>
-                                            <Text style={[styles.playerScore, { color: textColor }]}>
-                                                {match.score1 || 0}
-                                            </Text>
+                                            <Text style={[styles.playerScore, { color: textColor }]}>{match.score1 || 0}</Text>
                                         </View>
                                         <View style={styles.matchPlayer}>
-                                            <Text style={[
-                                                styles.playerName,
-                                                { color: !match.player2 || match.isBye ? mutedColor : textColor },
-                                                match.winner?.id === match.player2?.id && styles.winnerText
-                                            ]}>
+                                            <Text style={[styles.playerName, { color: !match.player2 || match.isBye ? mutedColor : textColor }, match.winner?.id === match.player2?.id && styles.winnerText]}>
                                                 {match.player2?.name || "TBD"}
                                             </Text>
-                                            <Text style={[styles.playerScore, { color: textColor }]}>
-                                                {match.score2 || 0}
-                                            </Text>
+                                            <Text style={[styles.playerScore, { color: textColor }]}>{match.score2 || 0}</Text>
                                         </View>
-                                        {match.isBye && (
-                                            <View style={styles.byeBadge}>
-                                                <Text style={styles.byeText}>BYE</Text>
-                                            </View>
-                                        )}
-                                        {/* LIVE Indicator - show when match is in progress (players set, no winner yet) */}
+                                        {match.isBye && <View style={styles.byeBadge}><Text style={styles.byeText}>BYE</Text></View>}
                                         {!match.isBye && match.player1 && match.player2 && !match.winner && (match.score1 > 0 || match.score2 > 0) && (
-                                            <Animated.View style={[styles.liveBadge, { opacity: pulseAnim }]}>
-                                                <Text style={styles.liveText}>● LIVE</Text>
-                                            </Animated.View>
+                                            <Animated.View style={[styles.liveBadge, { opacity: pulseAnim }]}><Text style={styles.liveText}>● LIVE</Text></Animated.View>
                                         )}
                                     </TouchableOpacity>
                                 ))}
@@ -823,6 +848,44 @@ export default function BracketGeneratorScreen() {
                                 )}
                             </View>
                         </View>
+                        {/* Bracket Tabs for Double Elimination */}
+                        {format === "DOUBLE_ELIM" && (
+                            <View style={[styles.bracketTabs, { borderBottomColor: borderColor }]}>
+                                <TouchableOpacity
+                                    style={[styles.bracketTabBtn, {
+                                        backgroundColor: bracketTab === 'winners' ? Colors.primary : cardColor,
+                                        borderColor: bracketTab === 'winners' ? Colors.primary : borderColor
+                                    }]}
+                                    onPress={() => setBracketTab('winners')}
+                                >
+                                    <Text style={[styles.bracketTabText, { color: bracketTab === 'winners' ? '#fff' : textColor }]}>
+                                        👑 Winners
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.bracketTabBtn, {
+                                        backgroundColor: bracketTab === 'losers' ? "#EF4444" : cardColor,
+                                        borderColor: bracketTab === 'losers' ? "#EF4444" : borderColor
+                                    }]}
+                                    onPress={() => setBracketTab('losers')}
+                                >
+                                    <Text style={[styles.bracketTabText, { color: bracketTab === 'losers' ? '#fff' : textColor }]}>
+                                        ⬇️ Losers
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.bracketTabBtn, {
+                                        backgroundColor: bracketTab === 'grand' ? "#F59E0B" : cardColor,
+                                        borderColor: bracketTab === 'grand' ? "#F59E0B" : borderColor
+                                    }]}
+                                    onPress={() => setBracketTab('grand')}
+                                >
+                                    <Text style={[styles.bracketTabText, { color: bracketTab === 'grand' ? '#fff' : textColor }]}>
+                                        🏆 Final
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
                         {renderBracket()}
                     </View>
                 )}
@@ -1020,4 +1083,10 @@ const styles = StyleSheet.create({
     // Print button
     printBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
     printBtnText: { fontSize: 12, fontWeight: "500" },
+    // Grand final container
+    grandFinalContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
+    championBadge: { marginTop: 20, backgroundColor: "#FEF3C7", paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8, borderWidth: 1, borderColor: "#F59E0B" },
+    championText: { fontSize: 16, fontWeight: "bold", textAlign: "center", color: "#D97706" },
+    // Empty bracket
+    emptyBracket: { flex: 1, justifyContent: "center", alignItems: "center", padding: 40 },
 });
