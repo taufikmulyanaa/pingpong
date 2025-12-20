@@ -41,6 +41,9 @@ interface BracketMatch {
     nextMatchId?: string;
     nextMatchSlot?: number;
     isBye: boolean;
+    bracketSide?: 'WINNERS' | 'LOSERS' | 'GRAND_FINAL';
+    scheduledAt?: string;
+    tableNumber?: number;
 }
 
 export default function BracketGeneratorScreen() {
@@ -57,6 +60,8 @@ export default function BracketGeneratorScreen() {
     const [participants, setParticipants] = useState<Participant[]>([]);
     const [newParticipantName, setNewParticipantName] = useState("");
     const [bracket, setBracket] = useState<BracketMatch[][]>([]);
+    const [losersBracket, setLosersBracket] = useState<BracketMatch[][]>([]);
+    const [grandFinal, setGrandFinal] = useState<BracketMatch | null>(null);
     const [isGenerated, setIsGenerated] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -135,6 +140,33 @@ export default function BracketGeneratorScreen() {
             }
         }
     }, [storeMatches]);
+
+    // Realtime subscription for live score updates
+    useEffect(() => {
+        if (!tournamentId) return;
+
+        const channel = supabase
+            .channel(`tournament_matches_${tournamentId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'tournament_matches',
+                    filter: `tournament_id=eq.${tournamentId}`,
+                },
+                async (payload) => {
+                    console.log('Realtime update:', payload);
+                    // Refresh matches when any change occurs
+                    await fetchMatches(tournamentId);
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [tournamentId]);
 
     // Reconstruct bracket from database matches
     const reconstructBracket = (matches: typeof storeMatches): BracketMatch[][] => {

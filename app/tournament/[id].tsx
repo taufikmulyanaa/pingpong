@@ -17,6 +17,8 @@ import { Colors } from "../../src/lib/constants";
 import { supabase } from "../../src/lib/supabase";
 import { useAuthStore } from "../../src/stores/authStore";
 import { Tournament, Profile } from "../../src/types/database";
+import TournamentStats from "../../src/components/TournamentStats";
+import TournamentNotifications, { NotificationBadge } from "../../src/components/TournamentNotifications";
 
 interface TournamentWithVenue extends Tournament {
     venues?: {
@@ -50,7 +52,7 @@ export default function TournamentDetailScreen() {
     // States
     const [tournament, setTournament] = useState<TournamentWithVenue | null>(null);
     const [participants, setParticipants] = useState<TournamentParticipant[]>([]);
-    const [activeTab, setActiveTab] = useState<"info" | "participants" | "bracket" | "schedule">("info");
+    const [activeTab, setActiveTab] = useState<"info" | "participants" | "bracket" | "schedule" | "stats">("info");
     const [bracketData, setBracketData] = useState<any[]>([]);
     const [scheduleItems, setScheduleItems] = useState<any[]>([]);
     const [isRegistered, setIsRegistered] = useState(false);
@@ -58,6 +60,7 @@ export default function TournamentDetailScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [registering, setRegistering] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [showNotifications, setShowNotifications] = useState(false);
 
     // Check if user is the organizer
     const isOrganizer = tournament?.organizer_id === user?.id;
