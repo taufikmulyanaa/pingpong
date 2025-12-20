@@ -709,9 +709,52 @@ export default function BracketGeneratorScreen() {
                             <View style={styles.participantsList}>
                                 {participants.map((p, index) => (
                                     <View key={p.id} style={[styles.participantItem, { backgroundColor: cardColor, borderColor }]}>
-                                        <View style={[styles.seedBadge, { backgroundColor: Colors.blueLight }]}>
-                                            <Text style={styles.seedText}>{index + 1}</Text>
-                                        </View>
+                                        {/* Seed Controls for Organizer */}
+                                        {isOrganizer ? (
+                                            <View style={styles.seedControls}>
+                                                <TouchableOpacity
+                                                    style={styles.seedArrow}
+                                                    onPress={() => {
+                                                        if (index === 0) return;
+                                                        const newParticipants = [...participants];
+                                                        [newParticipants[index - 1], newParticipants[index]] =
+                                                            [newParticipants[index], newParticipants[index - 1]];
+                                                        setParticipants(newParticipants);
+                                                    }}
+                                                    disabled={index === 0}
+                                                >
+                                                    <MaterialIcons
+                                                        name="arrow-drop-up"
+                                                        size={24}
+                                                        color={index === 0 ? borderColor : Colors.primary}
+                                                    />
+                                                </TouchableOpacity>
+                                                <View style={[styles.seedBadge, { backgroundColor: Colors.blueLight }]}>
+                                                    <Text style={styles.seedText}>{index + 1}</Text>
+                                                </View>
+                                                <TouchableOpacity
+                                                    style={styles.seedArrow}
+                                                    onPress={() => {
+                                                        if (index === participants.length - 1) return;
+                                                        const newParticipants = [...participants];
+                                                        [newParticipants[index], newParticipants[index + 1]] =
+                                                            [newParticipants[index + 1], newParticipants[index]];
+                                                        setParticipants(newParticipants);
+                                                    }}
+                                                    disabled={index === participants.length - 1}
+                                                >
+                                                    <MaterialIcons
+                                                        name="arrow-drop-down"
+                                                        size={24}
+                                                        color={index === participants.length - 1 ? borderColor : Colors.primary}
+                                                    />
+                                                </TouchableOpacity>
+                                            </View>
+                                        ) : (
+                                            <View style={[styles.seedBadge, { backgroundColor: Colors.blueLight }]}>
+                                                <Text style={styles.seedText}>{index + 1}</Text>
+                                            </View>
+                                        )}
                                         {p.avatar_url ? (
                                             <Image source={{ uri: p.avatar_url }} style={styles.participantAvatar} />
                                         ) : (
@@ -744,15 +787,41 @@ export default function BracketGeneratorScreen() {
                             <Text style={[styles.bracketTitle, { color: textColor }]}>
                                 Bracket ({slotCount} peserta)
                             </Text>
-                            {isOrganizer && (
-                                <TouchableOpacity onPress={handleSaveBracket} disabled={saving}>
-                                    {saving ? (
-                                        <ActivityIndicator size="small" color={Colors.primary} />
-                                    ) : (
-                                        <MaterialIcons name="save" size={24} color={Colors.primary} />
-                                    )}
+                            <View style={{ flexDirection: "row", gap: 12 }}>
+                                {/* Print Button */}
+                                <TouchableOpacity
+                                    style={[styles.printBtn, { borderColor }]}
+                                    onPress={() => {
+                                        Alert.alert(
+                                            "Print Bracket",
+                                            "Buka versi cetak bracket di browser?",
+                                            [
+                                                { text: "Batal", style: "cancel" },
+                                                {
+                                                    text: "Buka",
+                                                    onPress: () => {
+                                                        // In production: generate HTML and open in WebView/browser
+                                                        Alert.alert("Info", "Gunakan tombol Export HTML di Stats tab untuk mencetak bracket");
+                                                    }
+                                                },
+                                            ]
+                                        );
+                                    }}
+                                >
+                                    <MaterialIcons name="print" size={18} color={textColor} />
+                                    <Text style={[styles.printBtnText, { color: textColor }]}>Print</Text>
                                 </TouchableOpacity>
-                            )}
+                                {/* Save Button */}
+                                {isOrganizer && (
+                                    <TouchableOpacity onPress={handleSaveBracket} disabled={saving}>
+                                        {saving ? (
+                                            <ActivityIndicator size="small" color={Colors.primary} />
+                                        ) : (
+                                            <MaterialIcons name="save" size={24} color={Colors.primary} />
+                                        )}
+                                    </TouchableOpacity>
+                                )}
+                            </View>
                         </View>
                         {renderBracket()}
                     </View>
@@ -945,4 +1014,10 @@ const styles = StyleSheet.create({
     losersBracketLabel: { fontSize: 12, fontWeight: "600", color: "#EF4444", textAlign: "center", marginBottom: 8, marginTop: 16 },
     grandFinalCard: { margin: 16, padding: 16, borderRadius: 12, borderWidth: 2, borderColor: "#F59E0B" },
     grandFinalTitle: { fontSize: 16, fontWeight: "bold", textAlign: "center", marginBottom: 12, color: "#F59E0B" },
+    // Seed controls
+    seedControls: { flexDirection: "column", alignItems: "center", marginRight: 8 },
+    seedArrow: { padding: 2 },
+    // Print button
+    printBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
+    printBtnText: { fontSize: 12, fontWeight: "500" },
 });
