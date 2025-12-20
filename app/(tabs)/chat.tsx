@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
     View,
     Text,
@@ -10,6 +10,9 @@ import {
     RefreshControl,
     Platform,
     StatusBar,
+    Modal,
+    FlatList,
+    ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -36,6 +39,57 @@ export default function ChatScreen() {
     const [searchQuery, setSearchQuery] = useState("");
     const [conversations, setConversations] = useState<any[]>([]);
     const [refreshing, setRefreshing] = useState(false);
+
+    // New Chat Modal State
+    const [showNewChatModal, setShowNewChatModal] = useState(false);
+    const [users, setUsers] = useState<any[]>([]);
+    const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+    const [userSearchQuery, setUserSearchQuery] = useState("");
+
+    // Fetch users for new chat
+    const fetchUsers = async () => {
+        if (!profile?.id) return;
+        setIsLoadingUsers(true);
+        try {
+            const { data, error } = await supabase
+                .from("profiles")
+                .select("id, name, avatar_url, is_online, rating_mr")
+                .neq("id", profile.id)
+                .order("is_online", { ascending: false })
+                .order("name")
+                .limit(50);
+
+            if (data) {
+                setUsers(data);
+            }
+        } catch (error) {
+            console.error("Error fetching users:", error);
+        } finally {
+            setIsLoadingUsers(false);
+        }
+    };
+
+    // Filter users by search
+    const filteredUsers = useMemo(() => {
+        if (!userSearchQuery.trim()) return users;
+        const query = userSearchQuery.toLowerCase();
+        return users.filter(user =>
+            user.name?.toLowerCase().includes(query)
+        );
+    }, [users, userSearchQuery]);
+
+    // Handle opening new chat modal
+    const handleOpenNewChat = () => {
+        setShowNewChatModal(true);
+        fetchUsers();
+    };
+
+    // Handle selecting user for new chat
+    const handleSelectUser = (userId: string) => {
+        setShowNewChatModal(false);
+        setUserSearchQuery("");
+        router.push({ pathname: "/chat/[id]", params: { id: userId } });
+    };
 
     const fetchConversations = async () => {
         if (!profile?.id) return;
@@ -132,6 +186,12 @@ export default function ChatScreen() {
                         <View style={styles.headerLeft}>
                             <Text style={styles.headerTitle}>Chat</Text>
                         </View>
+                        <TouchableOpacity
+                            style={styles.newChatBtn}
+                            onPress={handleOpenNewChat}
+                        >
+                            <MaterialIcons name="edit" size={20} color="#fff" />
+                        </TouchableOpacity>
                     </View>
 
                     {/* Search Bar - Embedded in Header */}
@@ -248,14 +308,97 @@ export default function ChatScreen() {
                             </View>
                             <Text style={styles.emptyTitle}>Tidak ada pesan</Text>
                             <Text style={styles.emptyDesc}>
-                                Mulai percakapan dengan pemain lain dari halaman cari lawan.
+                                Mulai percakapan dengan pemain lain
                             </Text>
+                            <TouchableOpacity
+                                style={styles.startChatBtn}
+                                onPress={handleOpenNewChat}
+                            >
+                                <MaterialIcons name="add" size={20} color="#fff" />
+                                <Text style={styles.startChatBtnText}>Mulai Chat</Text>
+                            </TouchableOpacity>
                         </View>
                     )}
                 </View>
 
                 <View style={{ height: 100 }} />
             </ScrollView>
+
+            {/* Floating Action Button */}
+            <TouchableOpacity
+                style={styles.fab}
+                onPress={handleOpenNewChat}
+            >
+                <MaterialIcons name="edit" size={24} color="#fff" />
+            </TouchableOpacity>
+
+            {/* New Chat Modal */}
+            <Modal
+                visible={showNewChatModal}
+                transparent={true}
+                animationType="slide"
+                onRequestClose={() => setShowNewChatModal(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContainer}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Chat Baru</Text>
+                            <TouchableOpacity onPress={() => setShowNewChatModal(false)}>
+                                <MaterialIcons name="close" size={24} color={MESSENGER.textSecondary} />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Search Input */}
+                        <View style={styles.modalSearchContainer}>
+                            <MaterialIcons name="search" size={20} color={MESSENGER.textSecondary} />
+                            <TextInput
+                                style={styles.modalSearchInput}
+                                placeholder="Cari nama pemain..."
+                                placeholderTextColor={MESSENGER.textSecondary}
+                                value={userSearchQuery}
+                                onChangeText={setUserSearchQuery}
+                            />
+                        </View>
+
+                        {isLoadingUsers ? (
+                            <View style={styles.loadingContainer}>
+                                <ActivityIndicator size="large" color={Colors.primary} />
+                                <Text style={styles.loadingText}>Memuat pengguna...</Text>
+                            </View>
+                        ) : filteredUsers.length === 0 ? (
+                            <View style={styles.loadingContainer}>
+                                <MaterialIcons name="person-search" size={48} color={MESSENGER.textSecondary} />
+                                <Text style={styles.loadingText}>Tidak ada pengguna ditemukan</Text>
+                            </View>
+                        ) : (
+                            <FlatList
+                                data={filteredUsers}
+                                keyExtractor={(item) => item.id}
+                                renderItem={({ item }) => (
+                                    <TouchableOpacity
+                                        style={styles.userItem}
+                                        onPress={() => handleSelectUser(item.id)}
+                                    >
+                                        <View style={styles.userAvatarContainer}>
+                                            <Image
+                                                source={{ uri: item.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name || "User")}&background=random` }}
+                                                style={styles.userAvatar}
+                                            />
+                                            {item.is_online && <View style={styles.userOnlineDot} />}
+                                        </View>
+                                        <View style={styles.userInfo}>
+                                            <Text style={styles.userName}>{item.name}</Text>
+                                            <Text style={styles.userMr}>MR {item.rating_mr || 1000}</Text>
+                                        </View>
+                                        <MaterialIcons name="chat" size={24} color={Colors.primary} />
+                                    </TouchableOpacity>
+                                )}
+                                contentContainerStyle={{ paddingBottom: 20 }}
+                            />
+                        )}
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -491,5 +634,137 @@ const styles = StyleSheet.create({
         color: MESSENGER.textSecondary,
         textAlign: "center",
         lineHeight: 18,
+    },
+    // New Chat Button in Header
+    newChatBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.15)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    // Start Chat Button in Empty State
+    startChatBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: Colors.primary,
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderRadius: 100,
+        marginTop: 12,
+        gap: 8,
+    },
+    startChatBtnText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    // FAB
+    fab: {
+        position: 'absolute',
+        bottom: 100,
+        right: 20,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: Colors.primary,
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: Colors.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 8,
+    },
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContainer: {
+        backgroundColor: '#fff',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        maxHeight: '80%',
+        paddingTop: 20,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        marginBottom: 16,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: MESSENGER.textPrimary,
+    },
+    modalSearchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F1F5F9',
+        marginHorizontal: 20,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderRadius: 12,
+        marginBottom: 16,
+        gap: 12,
+    },
+    modalSearchInput: {
+        flex: 1,
+        fontSize: 15,
+        color: MESSENGER.textPrimary,
+    },
+    loadingContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 60,
+        gap: 12,
+    },
+    loadingText: {
+        fontSize: 14,
+        color: MESSENGER.textSecondary,
+    },
+    userItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        gap: 14,
+    },
+    userAvatarContainer: {
+        position: 'relative',
+    },
+    userAvatar: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+    },
+    userOnlineDot: {
+        position: 'absolute',
+        bottom: 0,
+        right: 0,
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        backgroundColor: MESSENGER.online,
+        borderWidth: 2,
+        borderColor: '#fff',
+    },
+    userInfo: {
+        flex: 1,
+    },
+    userName: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: MESSENGER.textPrimary,
+        marginBottom: 2,
+    },
+    userMr: {
+        fontSize: 12,
+        color: MESSENGER.textSecondary,
     },
 });
