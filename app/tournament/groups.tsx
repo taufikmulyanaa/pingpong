@@ -210,8 +210,8 @@ export default function GroupStageScreen() {
                 // Add members to group
                 for (const member of groupMembers) {
                     await (supabase.from("tournament_group_members") as any).insert({
-                        group_id: newGroup.id,
-                        participant_id: member.id,
+                        group_id: (newGroup as any).id,
+                        participant_id: (member as any).id,
                     });
                 }
 

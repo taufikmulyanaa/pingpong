@@ -399,15 +399,15 @@ export default function BracketGeneratorScreen() {
         if (!tournamentId) return;
 
         try {
-            const { error } = await supabase
-                .from("tournament_matches")
+            const { error } = await (supabase
+                .from("tournament_matches") as any)
                 .update({
                     winner_id: winnerId,
                     player1_score: score1,
                     player2_score: score2,
                     status: "COMPLETED",
                     completed_at: new Date().toISOString(),
-                } as any)
+                })
                 .eq("id", match.id);
 
             if (error) throw error;
@@ -466,8 +466,8 @@ export default function BracketGeneratorScreen() {
                 updateData.referee_id = editRefereeId;
             }
 
-            const { error } = await supabase
-                .from("tournament_matches")
+            const { error } = await (supabase
+                .from("tournament_matches") as any)
                 .update(updateData)
                 .eq("id", selectedMatch.id);
 
@@ -489,12 +489,12 @@ export default function BracketGeneratorScreen() {
         if (!selectedMatch || !tournamentId) return;
 
         try {
-            await supabase
-                .from("tournament_matches")
+            await (supabase
+                .from("tournament_matches") as any)
                 .update({
                     status: "IN_PROGRESS",
                     started_at: new Date().toISOString(),
-                } as any)
+                })
                 .eq("id", selectedMatch.id);
 
             await fetchMatches(tournamentId);
