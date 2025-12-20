@@ -207,27 +207,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                         if (sessionData?.user) {
                             set({ user: sessionData.user, session: sessionData.session });
 
-                            // Add small delay to ensure database trigger has completed
-                            await new Promise(resolve => setTimeout(resolve, 500));
+                            // Add delay to ensure database trigger has completed
+                            await new Promise(resolve => setTimeout(resolve, 1000));
 
-                            // Fetch profile from database
-                            const { data: profileData, error: profileError } = await supabase
-                                .from("profiles")
-                                .select("*")
-                                .eq("id", sessionData.user.id)
-                                .single();
+                            // Use the existing fetchProfile function for consistent state update
+                            await get().fetchProfile();
 
-                            console.log('Profile fetch result:', {
-                                profileData: profileData?.name,
-                                profileError
-                            });
-
-                            if (profileData) {
-                                set({ profile: profileData as Profile });
-                                console.log("Profile loaded after Google login:", (profileData as Profile).name);
-                            } else if (profileError) {
-                                console.error('Profile fetch error:', profileError);
-                            }
+                            console.log("Profile loaded after Google login:", get().profile?.name);
                         }
                     } else {
                         console.error('No tokens found in callback URL');
