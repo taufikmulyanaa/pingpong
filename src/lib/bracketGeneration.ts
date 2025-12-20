@@ -391,14 +391,46 @@ export function calculateGroupStandings(
         }
     });
 
-    // Sort by standing points, then by point difference
+    // Helper to find head-to-head result between two players
+    const getHeadToHeadResult = (playerId1: string, playerId2: string): number => {
+        // Returns: 1 if player1 won H2H, -1 if player2 won, 0 if tied or no match
+        for (const match of matches) {
+            if (!match.winner || !match.player1 || !match.player2) continue;
+
+            const isP1vsP2 = match.player1.id === playerId1 && match.player2.id === playerId2;
+            const isP2vsP1 = match.player1.id === playerId2 && match.player2.id === playerId1;
+
+            if (isP1vsP2) {
+                return match.winner.id === playerId1 ? 1 : -1;
+            } else if (isP2vsP1) {
+                return match.winner.id === playerId1 ? 1 : -1;
+            }
+        }
+        return 0; // No direct match
+    };
+
+    // Sort by: 1) standing points, 2) head-to-head, 3) point difference, 4) points for
     return Array.from(standings.values()).sort((a, b) => {
+        // 1. Standing points
         if (b.standingPoints !== a.standingPoints) {
             return b.standingPoints - a.standingPoints;
         }
+
+        // 2. Head-to-head result
+        const h2hResult = getHeadToHeadResult(a.participantId, b.participantId);
+        if (h2hResult !== 0) {
+            return -h2hResult; // Negative because we want winner first
+        }
+
+        // 3. Point difference
         const aPointDiff = a.pointsFor - a.pointsAgainst;
         const bPointDiff = b.pointsFor - b.pointsAgainst;
-        return bPointDiff - aPointDiff;
+        if (bPointDiff !== aPointDiff) {
+            return bPointDiff - aPointDiff;
+        }
+
+        // 4. Points for (more goals = better)
+        return b.pointsFor - a.pointsFor;
     });
 }
 
