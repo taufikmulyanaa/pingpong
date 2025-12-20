@@ -69,8 +69,11 @@ export default function LoginScreen() {
         const { error } = await signInWithGoogle();
         if (error) {
             Alert.alert("Google Login Gagal", error.message);
+        } else {
+            // Navigate to home after successful login
+            // Profile is already loaded in signInWithGoogle
+            router.replace("/(tabs)");
         }
-        // Note: Redirect handled by Supabase auth state change listener
     };
 
     return (
