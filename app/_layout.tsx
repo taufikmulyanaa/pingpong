@@ -8,6 +8,17 @@ import { useColorScheme, Platform } from "react-native";
 import { useAuthStore } from "@/stores/authStore";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { usePresence } from "@/hooks/usePresence";
+import {
+    Outfit_400Regular,
+    Outfit_500Medium,
+    Outfit_600SemiBold,
+    Outfit_700Bold
+} from '@expo-google-fonts/outfit';
+import {
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold
+} from '@expo-google-fonts/inter';
 
 const Colors = {
     primary: "#009688",
@@ -34,10 +45,19 @@ export default function RootLayout() {
 
     const isWeb = Platform.OS === "web";
 
+
+
     // Only load fonts via expo-font on native, use CDN on web
-    const [fontsLoaded, fontError] = useFonts(
-        isWeb ? {} : { ...MaterialIcons.font }
-    );
+    const [fontsLoaded, fontError] = useFonts({
+        ...(isWeb ? {} : MaterialIcons.font),
+        'Outfit-Regular': Outfit_400Regular,
+        'Outfit-Medium': Outfit_500Medium,
+        'Outfit-SemiBold': Outfit_600SemiBold,
+        'Outfit-Bold': Outfit_700Bold,
+        'Inter-Regular': Inter_400Regular,
+        'Inter-Medium': Inter_500Medium,
+        'Inter-SemiBold': Inter_600SemiBold,
+    });
 
     const loaded = isWeb ? true : fontsLoaded;
 

@@ -264,7 +264,12 @@ export default function QuickMatchScreen() {
             <Stack.Screen options={{ headerShown: false }} />
             <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={["top", "bottom"]}>
                 {/* Header */}
-                <View style={styles.header}>
+                <LinearGradient
+                    colors={[Colors.secondary, '#000830']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.header}
+                >
                     <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
                         <MaterialIcons name="arrow-back" size={24} color="#fff" />
                     </TouchableOpacity>
@@ -272,7 +277,7 @@ export default function QuickMatchScreen() {
                     <TouchableOpacity style={styles.headerBtn} onPress={() => setShowMyQR(true)}>
                         <MaterialIcons name="qr-code" size={24} color="#fff" />
                     </TouchableOpacity>
-                </View>
+                </LinearGradient>
 
                 <View style={styles.content}>
                     {!isSearching && !matchFound ? (
@@ -454,7 +459,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingBottom: 24,
         paddingTop: 12,
-        backgroundColor: Colors.secondary,
         borderBottomLeftRadius: 24,
         borderBottomRightRadius: 24,
     },

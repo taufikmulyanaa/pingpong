@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, Stack } from "expo-router";
 import { Colors, getLevelTitle, SharedStyles, ExtendedColors } from "../src/lib/constants";
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from "../src/stores/authStore";
 import { supabase } from "@/lib/supabase";
 
@@ -107,13 +108,18 @@ export default function LeaderboardScreen() {
             />
             <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={["top", "bottom"]}>
                 {/* Header */}
-                <View style={styles.header}>
+                <LinearGradient
+                    colors={[Colors.secondary, '#000830']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.header}
+                >
                     <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
                         <MaterialIcons name="arrow-back" size={24} color="#fff" />
                     </TouchableOpacity>
                     <Text style={[styles.headerTitle, { color: "#fff" }]}>Peringkat</Text>
                     <View style={{ width: 40 }} />
-                </View>
+                </LinearGradient>
 
                 {/* Filter Tabs */}
                 <View style={[styles.filterTabs, { borderBottomColor: borderColor }]}>
@@ -302,7 +308,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingBottom: 24,
         paddingTop: 12,
-        backgroundColor: Colors.secondary,
         borderBottomLeftRadius: 24,
         borderBottomRightRadius: 24,
         zIndex: 10,

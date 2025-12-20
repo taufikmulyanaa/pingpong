@@ -20,6 +20,7 @@ import { supabase } from "@/lib/supabase";
 import { Profile } from "@/types/database";
 import { useAuthStore } from "@/stores/authStore";
 import { MapComponent } from "@/components/MapComponent";
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Real Map View wrapper - uses platform-specific MapComponent
 const RealMapView = ({
@@ -42,11 +43,13 @@ const RealMapView = ({
                 onPlayerPress={onPlayerPress}
                 showPlayersMode={true}
             />
+            {/* Overlay Gradient for "Radar" effect style (optional, kept simple for now) */}
+            <View style={styles.mapOverlay} pointerEvents="none" />
         </View>
     );
 };
 
-// Player card component
+// Player card component - Refined
 const PlayerCard = ({
     player,
     distance,
@@ -58,11 +61,6 @@ const PlayerCard = ({
     onInvite: () => void;
     onProfile: () => void;
 }) => {
-    const colorScheme = useColorScheme();
-    const isDark = colorScheme === "dark";
-    const cardColor = Colors.surface;
-    const textColor = Colors.text;
-    const mutedColor = Colors.muted;
 
     const getStatusColor = () => {
         if (player.is_online) return "#10B981";
@@ -70,26 +68,27 @@ const PlayerCard = ({
     };
 
     return (
-        <View style={[styles.playerCard, { backgroundColor: cardColor }]}>
+        <View style={styles.playerCard}>
             <View style={styles.playerInfo}>
                 <View style={styles.playerAvatar}>
                     <Image
                         source={{ uri: player.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name || "User")}&background=random` }}
                         style={styles.playerImage}
                     />
-                    <View style={[styles.mrBadge, { backgroundColor: player.rating_mr! > 1400 ? Colors.accent : "#E5E7EB" }]}>
-                        <Text style={styles.mrBadgeText}>MR {player.rating_mr}</Text>
+                    {/* MR Badge Floating */}
+                    <View style={styles.mrBadge}>
+                        <Text style={styles.mrBadgeText}>{player.rating_mr}</Text>
                     </View>
                 </View>
 
                 <View style={styles.playerDetails}>
                     <View style={styles.playerHeader}>
                         <View>
-                            <Text style={[styles.playerName, { color: textColor }]}>{player.name}</Text>
+                            <Text style={styles.playerName}>{player.name}</Text>
                             <View style={styles.locationRow}>
-                                <MaterialIcons name="near-me" size={12} color={mutedColor} />
-                                <Text style={[styles.locationText, { color: mutedColor }]}>
-                                    {distance.toFixed(1)} km • {player.city}
+                                <MaterialIcons name="location-on" size={12} color={Colors.muted} />
+                                <Text style={styles.locationText}>
+                                    {distance.toFixed(1)} km • {player.city || 'Unknown'}
                                 </Text>
                             </View>
                         </View>
@@ -97,37 +96,34 @@ const PlayerCard = ({
                     </View>
 
                     <View style={styles.styleTags}>
-                        <View style={styles.styleTag}>
-                            <Text style={styles.styleTagText}>
-                                {GripStyles[player.grip_style as keyof typeof GripStyles]}
-                            </Text>
-                        </View>
-                        <View style={styles.styleTag}>
-                            <Text style={styles.styleTagText}>
-                                {PlayStyles[player.play_style as keyof typeof PlayStyles]}
-                            </Text>
-                        </View>
+                        {player.play_style && (
+                            <View style={styles.styleTag}>
+                                <Text style={styles.styleTagText}>
+                                    {PlayStyles[player.play_style as keyof typeof PlayStyles]}
+                                </Text>
+                            </View>
+                        )}
+
                     </View>
                 </View>
             </View>
 
             <View style={styles.playerActions}>
                 <TouchableOpacity
-                    style={[styles.profileBtn, { borderColor: isDark ? "#374151" : "#E5E7EB" }]}
+                    style={styles.profileBtn}
                     onPress={onProfile}
                 >
-                    <Text style={[styles.profileBtnText, { color: textColor }]}>Profil</Text>
+                    <Text style={styles.profileBtnText}>Lihat Profil</Text>
                 </TouchableOpacity>
 
                 {player.is_online ? (
                     <TouchableOpacity style={styles.inviteBtn} onPress={onInvite}>
-                        <MaterialIcons name="sports-tennis" size={16} color="#fff" />
                         <Text style={styles.inviteBtnText}>Undang Main</Text>
                     </TouchableOpacity>
                 ) : (
-                    <TouchableOpacity style={[styles.notifyBtn, { borderColor: isDark ? "#374151" : "#E5E7EB" }]}>
-                        <MaterialIcons name="notifications-active" size={16} color={mutedColor} />
-                        <Text style={[styles.notifyBtnText, { color: mutedColor }]}>Beritahu saat online</Text>
+                    <TouchableOpacity style={styles.notifyBtn}>
+                        <MaterialIcons name="notifications-none" size={16} color={Colors.muted} />
+                        <Text style={styles.notifyBtnText}>Ingatkan</Text>
                     </TouchableOpacity>
                 )}
             </View>
@@ -137,8 +133,6 @@ const PlayerCard = ({
 
 export default function CariScreen() {
     const router = useRouter();
-    const colorScheme = useColorScheme();
-    const isDark = colorScheme === "dark";
     const { profile } = useAuthStore();
 
     const [distance, setDistance] = useState(15);
@@ -238,11 +232,6 @@ export default function CariScreen() {
         fetchPlayers();
     }, [skillLevel, profile?.id]);
 
-    const bgColor = Colors.background;
-    const cardColor = Colors.surface;
-    const textColor = Colors.text;
-    const mutedColor = Colors.muted;
-
     const getSkillRange = () => {
         switch (skillLevel) {
             case "beginner":
@@ -268,19 +257,32 @@ export default function CariScreen() {
         });
     };
 
+    // Premium Colors
+    const bgColor = '#FFFFFF'; // Soft Slate
+    const cardColor = '#FFFFFF';
+    const textColor = Colors.secondary;
+
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={["top"]}>
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
-                    <MaterialIcons name="arrow-back" size={24} color="#fff" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Cari Lawan</Text>
-                <TouchableOpacity style={[styles.headerBtn, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
-                    <MaterialIcons name="notifications" size={22} color="#fff" />
-                    <View style={styles.notificationDot} />
-                </TouchableOpacity>
-            </View>
+        <View style={[styles.container, { backgroundColor: bgColor }]}>
+            {/* Header with LinearGradient */}
+            <LinearGradient
+                colors={[Colors.secondary, '#000830']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.headerGradient}
+            >
+                <SafeAreaView edges={['top']}>
+                    <View style={styles.header}>
+                        <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
+                            <MaterialIcons name="arrow-back" size={24} color="#fff" />
+                        </TouchableOpacity>
+                        <Text style={styles.headerTitle}>Cari Lawan</Text>
+                        <TouchableOpacity style={[styles.headerBtn, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
+                            <MaterialIcons name="tune" size={22} color="#fff" />
+                        </TouchableOpacity>
+                    </View>
+                </SafeAreaView>
+            </LinearGradient>
 
             <ScrollView
                 style={styles.scrollView}
@@ -290,7 +292,7 @@ export default function CariScreen() {
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
                 }
             >
-                {/* Map Section */}
+                {/* Map Section - Floating Card */}
                 <View style={[styles.radarSection, { backgroundColor: cardColor }]}>
                     <RealMapView
                         userLocation={userLocation}
@@ -301,12 +303,12 @@ export default function CariScreen() {
 
                     {/* Filters */}
                     <View style={styles.filters}>
-                        {/* Distance */}
+                        {/* Distance Slider */}
                         <View style={styles.filterItem}>
                             <View style={styles.filterHeader}>
-                                <Text style={[styles.filterLabel, { color: Colors.darkblue }]}>Jarak Maksimal</Text>
-                                <View style={[styles.filterValue, { backgroundColor: `${Colors.primary}20` }]}>
-                                    <Text style={[styles.filterValueText, { color: Colors.primary }]}>{distance} km</Text>
+                                <Text style={styles.filterLabel}>Jarak Maksimal</Text>
+                                <View style={styles.filterValueBadge}>
+                                    <Text style={styles.filterValueText}>{distance} km</Text>
                                 </View>
                             </View>
                             <Slider
@@ -316,21 +318,17 @@ export default function CariScreen() {
                                 value={distance}
                                 onValueChange={setDistance}
                                 minimumTrackTintColor={Colors.primary}
-                                maximumTrackTintColor={isDark ? "#374151" : "#E5E7EB"}
+                                maximumTrackTintColor={'#E2E8F0'}
                                 thumbTintColor={Colors.primary}
                             />
-                            <View style={styles.sliderLabels}>
-                                <Text style={[styles.sliderLabel, { color: mutedColor }]}>1 km</Text>
-                                <Text style={[styles.sliderLabel, { color: mutedColor }]}>50 km</Text>
-                            </View>
                         </View>
 
                         {/* Skill Range */}
                         <View style={styles.filterItem}>
                             <View style={styles.filterHeader}>
-                                <Text style={[styles.filterLabel, { color: Colors.darkblue }]}>Rentang Skill (MR)</Text>
-                                <View style={[styles.filterValue, { backgroundColor: `${Colors.secondary}20` }]}>
-                                    <Text style={[styles.filterValueText, { color: Colors.secondary }]}>{getSkillRange()}</Text>
+                                <Text style={styles.filterLabel}>Rating (MR)</Text>
+                                <View style={[styles.filterValueBadge, { backgroundColor: '#EEF2FF' }]}>
+                                    <Text style={[styles.filterValueText, { color: '#4F46E5' }]}>{getSkillRange()}</Text>
                                 </View>
                             </View>
                             <View style={styles.skillButtons}>
@@ -339,20 +337,14 @@ export default function CariScreen() {
                                         key={level}
                                         style={[
                                             styles.skillBtn,
-                                            {
-                                                borderColor: skillLevel === level ? Colors.primary : (isDark ? "#374151" : "#E5E7EB"),
-                                                backgroundColor: skillLevel === level ? `${Colors.primary}10` : cardColor,
-                                            },
+                                            skillLevel === level && styles.skillBtnActive
                                         ]}
                                         onPress={() => setSkillLevel(level)}
                                     >
                                         <Text
                                             style={[
                                                 styles.skillBtnText,
-                                                {
-                                                    color: skillLevel === level ? Colors.primary : mutedColor,
-                                                    fontWeight: skillLevel === level ? "bold" : "500",
-                                                },
+                                                skillLevel === level && styles.skillBtnTextActive
                                             ]}
                                         >
                                             {level === "beginner" ? "Pemula" : level === "intermediate" ? "Menengah" : "Pro"}
@@ -367,9 +359,9 @@ export default function CariScreen() {
                 {/* Results */}
                 <View style={styles.results}>
                     <View style={styles.resultsHeader}>
-                        <Text style={[styles.resultsTitle, { color: Colors.darkblue }]}>Ditemukan</Text>
+                        <Text style={styles.resultsTitle}>Ditemukan</Text>
                         <View style={styles.resultsBadge}>
-                            <Text style={styles.resultsBadgeText}>{players.length} Lawan</Text>
+                            <Text style={styles.resultsBadgeText}>{players.length} Pemain</Text>
                         </View>
                     </View>
 
@@ -385,8 +377,8 @@ export default function CariScreen() {
                         ))
                     ) : (
                         <View style={[styles.emptyState, { backgroundColor: cardColor }]}>
-                            <MaterialIcons name="person-search" size={48} color={mutedColor} />
-                            <Text style={[styles.emptyStateText, { color: mutedColor }]}>
+                            <MaterialIcons name="person-search" size={48} color={Colors.muted} />
+                            <Text style={styles.emptyStateText}>
                                 Tidak ada pemain ditemukan dalam kriteria ini
                             </Text>
                         </View>
@@ -396,12 +388,7 @@ export default function CariScreen() {
                 {/* Bottom padding */}
                 <View style={{ height: 100 }} />
             </ScrollView>
-
-            {/* Filter FAB */}
-            <TouchableOpacity style={styles.filterFab}>
-                <MaterialIcons name="filter-list" size={24} color="#fff" />
-            </TouchableOpacity>
-        </SafeAreaView>
+        </View>
     );
 }
 
@@ -409,55 +396,32 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
+    headerGradient: {
+        paddingBottom: 20,
+        borderBottomLeftRadius: 32,
+        borderBottomRightRadius: 32,
+        marginBottom: 10,
+    },
     header: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
         paddingHorizontal: 20,
-        paddingBottom: 24,
         paddingTop: 12,
-        backgroundColor: Colors.secondary,
-        borderBottomLeftRadius: 24,
-        borderBottomRightRadius: 24,
+        marginBottom: 10,
     },
     headerTitle: {
-        fontSize: 18,
-        fontWeight: "bold",
+        fontSize: 20,
+        fontFamily: 'Outfit-Bold',
         color: "#fff",
     },
     headerBtn: {
         width: 40,
         height: 40,
         borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.1)',
         justifyContent: "center",
         alignItems: "center",
-    },
-    locationBadge: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 4,
-        marginTop: 2,
-    },
-    locationBadgeText: {
-        fontSize: 12,
-    },
-    notificationBtn: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    notificationDot: {
-        position: "absolute",
-        top: 8,
-        right: 8,
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: "#EF4444",
-        borderWidth: 2,
-        borderColor: "#fff",
     },
     scrollView: {
         flex: 1,
@@ -467,116 +431,61 @@ const styles = StyleSheet.create({
     },
     radarSection: {
         marginHorizontal: 20,
-        marginTop: 24,
-        borderRadius: 16,
+        marginTop: 10,
+        borderRadius: 24,
         padding: 16,
+        // Soft Shadow
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.02,
+        shadowRadius: 8,
+        elevation: 1,
     },
     radarContainer: {
-        height: 220,
-        justifyContent: "center",
-        alignItems: "center",
-        position: "relative",
+        height: 180,
+        borderRadius: 16,
+        overflow: "hidden",
         marginBottom: 20,
-        backgroundColor: "rgba(0,16,100,0.05)",
-        borderRadius: 16,
-        overflow: "hidden",
-    },
-    mapView: {
-        width: "100%",
-        height: "100%",
-        borderRadius: 16,
-    },
-    playerMarker: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        justifyContent: "center",
-        alignItems: "center",
-        borderWidth: 2,
-        borderColor: "#fff",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
-        elevation: 5,
-    },
-    radarRing: {
-        position: "absolute",
-        borderRadius: 999,
+        backgroundColor: '#F1F5F9',
         borderWidth: 1,
-        borderColor: Colors.primary,
+        borderColor: 'rgba(0,0,0,0.05)',
     },
-    radarCenter: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        borderWidth: 2,
-        borderColor: "#fff",
-        overflow: "hidden",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 4,
+    mapOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.02)',
     },
-    radarAvatar: {
-        width: "100%",
-        height: "100%",
-    },
-    scanningBadge: {
-        position: "absolute",
-        bottom: 12,
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        backgroundColor: "rgba(255,255,255,0.9)",
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 20,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-    },
-    scanningText: {
-        fontSize: 12,
-        color: Colors.primary,
-        fontWeight: "500",
-    },
+
+    // Filters
     filters: {
         gap: 20,
     },
-    filterItem: {},
+    filterItem: {
+        gap: 8,
+    },
     filterHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 8,
     },
     filterLabel: {
         fontSize: 14,
-        fontWeight: "600",
+        fontFamily: 'Outfit-SemiBold',
+        color: Colors.secondary,
     },
-    filterValue: {
+    filterValueBadge: {
         paddingHorizontal: 8,
-        paddingVertical: 4,
+        paddingVertical: 2,
         borderRadius: 6,
+        backgroundColor: '#F0FDF4',
     },
     filterValueText: {
-        fontSize: 14,
-        fontWeight: "bold",
+        fontSize: 12,
+        fontFamily: 'Inter-Bold',
+        color: '#15803D',
     },
     slider: {
         width: "100%",
         height: 40,
-    },
-    sliderLabels: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        marginTop: -8,
-    },
-    sliderLabel: {
-        fontSize: 10,
     },
     skillButtons: {
         flexDirection: "row",
@@ -585,14 +494,27 @@ const styles = StyleSheet.create({
     skillBtn: {
         flex: 1,
         paddingVertical: 10,
-        paddingHorizontal: 12,
         borderRadius: 12,
-        borderWidth: 2,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
         alignItems: "center",
+        backgroundColor: '#F8FAFC',
+    },
+    skillBtnActive: {
+        borderColor: Colors.primary,
+        backgroundColor: 'rgba(13, 148, 136, 0.1)',
     },
     skillBtnText: {
         fontSize: 12,
+        fontFamily: 'Inter-Medium',
+        color: Colors.muted,
     },
+    skillBtnTextActive: {
+        color: Colors.primary,
+        fontFamily: 'Inter-SemiBold',
+    },
+
+    // Results
     results: {
         paddingHorizontal: 20,
         marginTop: 24,
@@ -605,25 +527,35 @@ const styles = StyleSheet.create({
     },
     resultsTitle: {
         fontSize: 18,
-        fontWeight: "bold",
+        fontFamily: 'Outfit-Bold',
+        color: Colors.secondary,
     },
     resultsBadge: {
-        backgroundColor: Colors.primary,
+        backgroundColor: Colors.secondary,
         paddingHorizontal: 8,
-        paddingVertical: 4,
+        paddingVertical: 2,
         borderRadius: 12,
     },
     resultsBadgeText: {
         color: "#fff",
         fontSize: 10,
-        fontWeight: "bold",
+        fontFamily: 'Inter-Bold',
     },
+
+    // Player Card
     playerCard: {
-        borderRadius: 16,
+        backgroundColor: '#fff',
+        borderRadius: 20,
         padding: 16,
-        marginBottom: 12,
+        marginBottom: 16,
+        // Card Shadow
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.02,
+        shadowRadius: 8,
+        elevation: 1,
         borderWidth: 1,
-        borderColor: "rgba(0,0,0,0.05)",
+        borderColor: 'rgba(0,0,0,0.03)',
     },
     playerInfo: {
         flexDirection: "row",
@@ -633,27 +565,29 @@ const styles = StyleSheet.create({
         position: "relative",
     },
     playerImage: {
-        width: 64,
-        height: 64,
-        borderRadius: 12,
+        width: 60,
+        height: 60,
+        borderRadius: 20,
     },
     mrBadge: {
         position: "absolute",
-        bottom: -8,
-        right: -8,
+        bottom: -6,
+        right: -6,
+        backgroundColor: '#F59E0B',
         paddingHorizontal: 6,
         paddingVertical: 2,
-        borderRadius: 10,
+        borderRadius: 8,
         borderWidth: 2,
         borderColor: "#fff",
     },
     mrBadgeText: {
         fontSize: 10,
-        fontWeight: "bold",
-        color: Colors.darkblue,
+        fontFamily: 'Inter-Bold',
+        color: '#fff',
     },
     playerDetails: {
         flex: 1,
+        justifyContent: 'center',
     },
     playerHeader: {
         flexDirection: "row",
@@ -662,7 +596,8 @@ const styles = StyleSheet.create({
     },
     playerName: {
         fontSize: 16,
-        fontWeight: "bold",
+        fontFamily: 'Outfit-Bold',
+        color: Colors.secondary,
     },
     locationRow: {
         flexDirection: "row",
@@ -671,134 +606,100 @@ const styles = StyleSheet.create({
         marginTop: 2,
     },
     locationText: {
-        fontSize: 12,
+        fontSize: 11,
+        fontFamily: 'Inter-Regular',
+        color: Colors.muted,
     },
     statusDot: {
-        width: 10,
-        height: 10,
-        borderRadius: 5,
-        borderWidth: 2,
-        borderColor: "#fff",
+        width: 8,
+        height: 8,
+        borderRadius: 4,
     },
     styleTags: {
         flexDirection: "row",
         gap: 6,
-        marginTop: 12,
+        marginTop: 8,
     },
     styleTag: {
-        backgroundColor: "rgba(0,0,0,0.05)",
+        backgroundColor: '#F1F5F9',
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 6,
     },
     styleTagText: {
         fontSize: 10,
-        fontWeight: "500",
+        fontFamily: 'Inter-Medium',
+        color: Colors.secondary,
     },
+
+    // Player Actions
     playerActions: {
         flexDirection: "row",
-        gap: 8,
+        gap: 12,
         marginTop: 16,
-        paddingTop: 12,
+        paddingTop: 16,
         borderTopWidth: 1,
-        borderTopColor: "rgba(0,0,0,0.05)",
+        borderTopColor: 'rgba(0,0,0,0.05)',
     },
     profileBtn: {
         flex: 1,
         paddingVertical: 10,
-        borderRadius: 10,
+        borderRadius: 12,
         borderWidth: 1,
+        borderColor: '#E2E8F0',
         alignItems: "center",
     },
     profileBtnText: {
-        fontSize: 14,
-        fontWeight: "500",
+        fontSize: 13,
+        fontFamily: 'Inter-Medium',
+        color: Colors.muted,
     },
     inviteBtn: {
-        flex: 2,
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
+        flex: 1,
         backgroundColor: Colors.primary,
         paddingVertical: 10,
-        borderRadius: 10,
+        borderRadius: 12,
+        alignItems: "center",
         shadowColor: Colors.primary,
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
+        shadowOpacity: 0.2,
         shadowRadius: 8,
     },
     inviteBtnText: {
         color: "#fff",
-        fontSize: 14,
-        fontWeight: "600",
+        fontSize: 13,
+        fontFamily: 'Inter-SemiBold',
     },
     notifyBtn: {
         flex: 1,
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
+        flexDirection: 'row',
         gap: 6,
+        backgroundColor: '#F8FAFC',
         paddingVertical: 10,
-        borderRadius: 10,
-        borderWidth: 1,
+        borderRadius: 12,
+        alignItems: "center",
+        justifyContent: 'center',
     },
     notifyBtnText: {
-        fontSize: 12,
-        fontWeight: "500",
+        color: Colors.muted,
+        fontSize: 13,
+        fontFamily: 'Inter-Medium',
     },
-    filterFab: {
-        position: "absolute",
-        bottom: 100,
-        right: 20,
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: Colors.darkblue,
-        justifyContent: "center",
-        alignItems: "center",
-        shadowColor: Colors.darkblue,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 8,
-    },
+
     emptyState: {
         alignItems: "center",
         justifyContent: "center",
         paddingVertical: 40,
         borderRadius: 16,
         gap: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.05)',
     },
     emptyStateText: {
         fontSize: 14,
+        fontFamily: 'Inter-Regular',
         textAlign: "center",
         paddingHorizontal: 20,
-    },
-    webMapFallback: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundColor: "rgba(0,16,100,0.05)",
-        borderRadius: 16,
-        padding: 20,
-    },
-    webMapTitle: {
-        fontSize: 18,
-        fontWeight: "bold",
-        color: Colors.darkblue,
-        marginTop: 12,
-    },
-    webMapText: {
-        fontSize: 14,
         color: Colors.muted,
-        marginTop: 8,
-        textAlign: "center",
-    },
-    webMapHint: {
-        fontSize: 12,
-        color: Colors.primary,
-        marginTop: 4,
-        fontWeight: "500",
     },
 });

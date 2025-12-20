@@ -19,6 +19,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, Stack } from "expo-router";
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from "expo-camera";
 import { Colors, SharedStyles, ExtendedColors } from "../src/lib/constants";
+import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from "../src/lib/supabase";
 import { useAuthStore } from "../src/stores/authStore";
 
@@ -397,13 +398,18 @@ export default function ScanQRScreen() {
             />
             <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={["top", "bottom"]}>
                 {/* Header */}
-                <View style={styles.header}>
+                <LinearGradient
+                    colors={[Colors.secondary, '#000830']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.header}
+                >
                     <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
                         <MaterialIcons name="arrow-back" size={24} color="#fff" />
                     </TouchableOpacity>
                     <Text style={[styles.headerTitle, { color: "#fff" }]}>Scan QR</Text>
                     <View style={{ width: 40 }} />
-                </View>
+                </LinearGradient>
 
                 {/* Camera View */}
                 <View style={styles.cameraContainer}>
@@ -623,7 +629,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingBottom: 16,
         paddingTop: 12,
-        backgroundColor: Colors.secondary,
         zIndex: 10,
     },
     headerTitle: {

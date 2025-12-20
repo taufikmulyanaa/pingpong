@@ -18,6 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, Stack } from "expo-router";
 import { Colors } from "../../src/lib/constants";
+import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from "../../src/lib/supabase";
 import { useAuthStore } from "../../src/stores/authStore";
 
@@ -255,18 +256,29 @@ export default function ClubListScreen() {
             />
             <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={["top", "bottom"]}>
                 {/* Custom Navy Header */}
-                <View style={styles.header}>
-                    <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
-                        <MaterialIcons name="arrow-back" size={24} color="#fff" />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Klub PTM</Text>
-                    <TouchableOpacity
-                        style={styles.headerBtn}
-                        onPress={() => setShowCreateModal(true)}
-                    >
-                        <MaterialIcons name="add" size={24} color="#fff" />
-                    </TouchableOpacity>
-                </View>
+                <LinearGradient
+                    colors={[Colors.secondary, '#000830']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.headerGradient}
+                >
+                    {/* Abstract Background Decorations */}
+                    <View style={styles.bgDecorationCircle1} />
+                    <View style={styles.bgDecorationCircle2} />
+
+                    <View style={styles.headerContent}>
+                        <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
+                            <MaterialIcons name="arrow-back" size={24} color="#fff" />
+                        </TouchableOpacity>
+                        <Text style={styles.headerTitle}>Klub PTM</Text>
+                        <TouchableOpacity
+                            style={styles.headerBtn}
+                            onPress={() => setShowCreateModal(true)}
+                        >
+                            <MaterialIcons name="add" size={24} color="#fff" />
+                        </TouchableOpacity>
+                    </View>
+                </LinearGradient>
                 {/* Search */}
                 <View style={styles.searchContainer}>
                     <View style={[styles.searchBar, { backgroundColor: cardColor }]}>
@@ -682,16 +694,38 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
-    header: {
+    headerGradient: {
+        paddingBottom: 24,
+        paddingTop: 12,
+        borderBottomLeftRadius: 24,
+        borderBottomRightRadius: 24,
+        position: 'relative',
+        overflow: 'hidden',
+    },
+    // Background Decorations for Ultra-Premium feel
+    bgDecorationCircle1: {
+        position: 'absolute',
+        top: -50,
+        right: -50,
+        width: 200,
+        height: 200,
+        borderRadius: 100,
+        backgroundColor: 'rgba(255,255,255,0.03)',
+    },
+    bgDecorationCircle2: {
+        position: 'absolute',
+        top: 100,
+        left: -30,
+        width: 140,
+        height: 140,
+        borderRadius: 70,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+    },
+    headerContent: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
         paddingHorizontal: 20,
-        paddingBottom: 24,
-        paddingTop: 12,
-        backgroundColor: Colors.secondary,
-        borderBottomLeftRadius: 24,
-        borderBottomRightRadius: 24,
     },
     headerTitle: {
         fontSize: 18,
@@ -702,6 +736,7 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.1)',
         justifyContent: "center",
         alignItems: "center",
     },
@@ -730,9 +765,18 @@ const styles = StyleSheet.create({
     clubCard: {
         flexDirection: "row",
         alignItems: "center",
-        padding: 14,
-        borderRadius: 12,
-        marginBottom: 10,
+        padding: 16,
+        borderRadius: 20,
+        marginBottom: 12,
+        // Standard Card Style
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.05)',
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.02,
+        shadowRadius: 8,
+        elevation: 1,
     },
     clubLogo: {
         width: 56,

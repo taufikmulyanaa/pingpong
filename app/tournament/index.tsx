@@ -15,6 +15,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, Stack } from "expo-router";
 import { Colors } from "../../src/lib/constants";
 import { supabase } from "../../src/lib/supabase";
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface Tournament {
     id: string;
@@ -141,7 +142,12 @@ export default function TournamentListScreen() {
             />
             <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={["top", "bottom"]}>
                 {/* Custom Navy Header */}
-                <View style={styles.header}>
+                <LinearGradient
+                    colors={[Colors.secondary, '#000830']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.header}
+                >
                     <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
                         <MaterialIcons name="arrow-back" size={24} color="#fff" />
                     </TouchableOpacity>
@@ -152,7 +158,7 @@ export default function TournamentListScreen() {
                     >
                         <MaterialIcons name="add" size={24} color="#fff" />
                     </TouchableOpacity>
-                </View>
+                </LinearGradient>
 
                 {/* Filter Tabs */}
                 <View style={[styles.filterTabs, { borderBottomColor: borderColor }]}>
@@ -333,7 +339,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingBottom: 24,
         paddingTop: 12,
-        backgroundColor: Colors.secondary,
         borderBottomLeftRadius: 24,
         borderBottomRightRadius: 24,
     },
@@ -372,11 +377,18 @@ const styles = StyleSheet.create({
         padding: 20,
     },
     tournamentCard: {
-        borderRadius: 12,
-        marginBottom: 16,
+        borderRadius: 20,
+        marginBottom: 20,
         overflow: "hidden",
+        // Standard Card Style
+        backgroundColor: '#fff',
         borderWidth: 1,
-        borderColor: "#E5E7EB",
+        borderColor: 'rgba(0,0,0,0.05)',
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.02,
+        shadowRadius: 8,
+        elevation: 1,
     },
     tournamentImage: {
         width: "100%",

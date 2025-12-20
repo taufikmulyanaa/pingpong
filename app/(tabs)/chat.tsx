@@ -8,6 +8,8 @@ import {
     StyleSheet,
     TextInput,
     RefreshControl,
+    Platform,
+    StatusBar,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -15,16 +17,17 @@ import { useRouter } from "expo-router";
 import { Colors } from "@/lib/constants";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/authStore";
+import { LinearGradient } from 'expo-linear-gradient';
 
-// App colors
+// App colors - updated for Premium feel
 const MESSENGER = {
-    primary: "#001064",
-    background: "#fff",
-    surfaceGray: "#F0F2F5",
-    textPrimary: "#050505",
-    textSecondary: "#65676B",
-    online: "#31A24C",
-    border: "#E4E6EB",
+    primary: Colors.primary, // Teal
+    background: "#F8FAFC", // Soft Slate
+    surfaceGray: "#FFFFFF",
+    textPrimary: Colors.secondary,
+    textSecondary: Colors.muted,
+    online: "#10B981",
+    border: "rgba(0,0,0,0.05)",
 };
 
 export default function ChatScreen() {
@@ -33,7 +36,6 @@ export default function ChatScreen() {
     const [searchQuery, setSearchQuery] = useState("");
     const [conversations, setConversations] = useState<any[]>([]);
     const [refreshing, setRefreshing] = useState(false);
-    const [activeTab, setActiveTab] = useState<"chats" | "online">("chats");
 
     const fetchConversations = async () => {
         if (!profile?.id) return;
@@ -117,128 +119,144 @@ export default function ChatScreen() {
     const onlineUsers = conversations.filter((c) => c.online);
 
     return (
-        <SafeAreaView style={styles.container} edges={["top"]}>
-            {/* Messenger Header */}
-            <View style={styles.header}>
-                <View style={styles.headerLeft}>
-                    <Image
-                        source={{ uri: profile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.name || "User")}&background=0084FF&color=fff` }}
-                        style={styles.profileAvatar}
-                    />
-                    <Text style={styles.headerTitle}>Chat</Text>
-                </View>
-                <View style={styles.headerRight}>
-                </View>
-            </View>
-
-            {/* Search Bar */}
-            <View style={styles.searchContainer}>
-                <View style={styles.searchBar}>
-                    <MaterialIcons name="search" size={20} color={MESSENGER.textSecondary} />
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="Cari"
-                        placeholderTextColor={MESSENGER.textSecondary}
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                    />
-                </View>
-            </View>
-
-            {/* Stories / Online Section */}
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.storiesContainer}
-                contentContainerStyle={styles.storiesContent}
+        <View style={styles.container}>
+            {/* Messenger Header with Gradient */}
+            <LinearGradient
+                colors={[Colors.secondary, '#000830']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.headerGradient}
             >
-                {/* Online Users */}
-                {onlineUsers.map((user) => (
-                    <TouchableOpacity
-                        key={user.id}
-                        style={styles.storyItem}
-                        onPress={() => router.push({ pathname: "/chat/[id]", params: { id: user.id } })}
-                    >
-                        <View style={styles.storyAvatarWrapper}>
-                            <Image source={{ uri: user.avatar }} style={styles.storyAvatar} />
-                            <View style={styles.storyOnlineDot} />
+                <SafeAreaView edges={['top']}>
+                    <View style={styles.header}>
+                        <View style={styles.headerLeft}>
+                            <Text style={styles.headerTitle}>Chat</Text>
                         </View>
-                        <Text style={styles.storyName} numberOfLines={1}>
-                            {user.name.split(" ")[0]}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
-            </ScrollView>
+                    </View>
 
-            {/* Conversations List */}
+                    {/* Search Bar - Embedded in Header */}
+                    <View style={styles.searchContainer}>
+                        <View style={styles.searchBar}>
+                            <MaterialIcons name="search" size={20} color={'rgba(255,255,255,0.6)'} />
+                            <TextInput
+                                style={styles.searchInput}
+                                placeholder="Cari percakapan..."
+                                placeholderTextColor={'rgba(255,255,255,0.6)'}
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                            />
+                        </View>
+                    </View>
+                </SafeAreaView>
+            </LinearGradient>
+
             <ScrollView
-                style={styles.conversationsList}
-                contentContainerStyle={styles.conversationsContent}
+                style={styles.scrollView}
+                contentContainerStyle={styles.content}
                 showsVerticalScrollIndicator={false}
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={MESSENGER.primary} />
                 }
             >
-                {filteredConversations.map((conv) => (
-                    <TouchableOpacity
-                        key={conv.id}
-                        style={styles.conversationItem}
-                        onPress={() => router.push({ pathname: "/chat/[id]", params: { id: conv.id } })}
-                        activeOpacity={0.7}
-                    >
-                        <View style={styles.conversationAvatar}>
-                            <Image source={{ uri: conv.avatar }} style={styles.avatar} />
-                            {conv.online && <View style={styles.onlineDot} />}
-                        </View>
-
-                        <View style={styles.conversationContent}>
-                            <Text
-                                style={[
-                                    styles.conversationName,
-                                    conv.unread > 0 && styles.conversationNameUnread,
-                                ]}
-                            >
-                                {conv.name}
-                            </Text>
-                            <View style={styles.conversationPreview}>
-                                <Text
-                                    style={[
-                                        styles.conversationMessage,
-                                        conv.unread > 0 && styles.conversationMessageUnread,
-                                    ]}
-                                    numberOfLines={1}
+                {/* Online Users */}
+                {onlineUsers.length > 0 && (
+                    <View style={styles.sectionContainer}>
+                        <Text style={styles.sectionLabel}>Online ({onlineUsers.length})</Text>
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.onlineList}
+                        >
+                            {onlineUsers.map((user) => (
+                                <TouchableOpacity
+                                    key={user.id}
+                                    style={styles.onlineItem}
+                                    onPress={() => router.push({ pathname: "/chat/[id]", params: { id: user.id } })}
                                 >
-                                    {conv.isMe ? "Anda: " : ""}{conv.lastMessage}
-                                </Text>
-                                <Text style={styles.conversationTime}> · {conv.time}</Text>
-                            </View>
-                        </View>
-
-                        {conv.unread > 0 && (
-                            <View style={styles.unreadDot} />
-                        )}
-                    </TouchableOpacity>
-                ))}
-
-                {/* Empty State */}
-                {filteredConversations.length === 0 && (
-                    <View style={styles.emptyState}>
-                        <View style={styles.emptyIcon}>
-                            <MaterialIcons name="chat" size={48} color={MESSENGER.primary} />
-                        </View>
-                        <Text style={styles.emptyTitle}>Tidak ada pesan</Text>
-                        <Text style={styles.emptyDesc}>
-                            Mulai percakapan dengan pemain lain sekarang!
-                        </Text>
-                        <TouchableOpacity style={styles.emptyBtn}>
-                            <Text style={styles.emptyBtnText}>Mulai Chat Baru</Text>
-                        </TouchableOpacity>
+                                    <View style={styles.onlineAvatarWrapper}>
+                                        <Image source={{ uri: user.avatar }} style={styles.onlineAvatar} />
+                                        <View style={styles.onlineDot} />
+                                    </View>
+                                    <Text style={styles.onlineName} numberOfLines={1}>
+                                        {user.name.split(" ")[0]}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
                     </View>
                 )}
 
+                {/* Conversations List */}
+                <View style={[styles.sectionContainer, { marginTop: 12 }]}>
+                    <Text style={styles.sectionLabel}>Pesan Terbaru</Text>
+
+                    <View style={styles.listContainer}>
+                        {filteredConversations.map((conv, index) => (
+                            <TouchableOpacity
+                                key={conv.id}
+                                style={[
+                                    styles.conversationItem,
+                                    index !== filteredConversations.length - 1 && styles.conversationBorder
+                                ]}
+                                onPress={() => router.push({ pathname: "/chat/[id]", params: { id: conv.id } })}
+                                activeOpacity={0.7}
+                            >
+                                <View style={styles.conversationAvatar}>
+                                    <Image source={{ uri: conv.avatar }} style={styles.avatar} />
+                                    {conv.online && <View style={styles.onlineDotSmall} />}
+                                </View>
+
+                                <View style={styles.conversationContent}>
+                                    <View style={styles.conversationHeader}>
+                                        <Text
+                                            style={[
+                                                styles.conversationName,
+                                                conv.unread > 0 && styles.textBold,
+                                            ]}
+                                        >
+                                            {conv.name}
+                                        </Text>
+                                        <Text style={styles.conversationTime}>{conv.time}</Text>
+                                    </View>
+
+                                    <View style={styles.conversationFooter}>
+                                        <Text
+                                            style={[
+                                                styles.conversationMessage,
+                                                conv.unread > 0 && styles.textBoldPrimary,
+                                            ]}
+                                            numberOfLines={1}
+                                        >
+                                            {conv.isMe ? "Anda: " : ""}{conv.lastMessage}
+                                        </Text>
+                                        {conv.unread > 0 && (
+                                            <View style={styles.unreadBadge}>
+                                                <Text style={styles.unreadText}>{conv.unread}</Text>
+                                            </View>
+                                        )}
+                                    </View>
+                                </View>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+
+                    {/* Empty State */}
+                    {filteredConversations.length === 0 && (
+                        <View style={styles.emptyState}>
+                            <View style={styles.emptyIcon}>
+                                <MaterialIcons name="chat-bubble-outline" size={40} color={MESSENGER.textSecondary} />
+                            </View>
+                            <Text style={styles.emptyTitle}>Tidak ada pesan</Text>
+                            <Text style={styles.emptyDesc}>
+                                Mulai percakapan dengan pemain lain dari halaman cari lawan.
+                            </Text>
+                        </View>
+                    )}
+                </View>
+
                 <View style={{ height: 100 }} />
             </ScrollView>
-        </SafeAreaView>
+        </View>
     );
 }
 
@@ -247,102 +265,94 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: MESSENGER.background,
     },
-
-    // Header
+    scrollView: {
+        flex: 1,
+    },
+    content: {
+        paddingBottom: 20,
+    },
+    headerGradient: {
+        paddingBottom: 20,
+        borderBottomLeftRadius: 32,
+        borderBottomRightRadius: 32,
+        marginBottom: 10,
+    },
     header: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        paddingHorizontal: 16,
-        paddingVertical: 10,
+        paddingHorizontal: 20,
+        paddingTop: 12,
+        marginBottom: 16,
     },
     headerLeft: {
         flexDirection: "row",
         alignItems: "center",
         gap: 12,
     },
-    profileAvatar: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-    },
     headerTitle: {
-        fontSize: 26,
-        fontWeight: "bold",
-        color: MESSENGER.textPrimary,
+        fontSize: 28,
+        fontFamily: 'Outfit-Bold',
+        color: '#fff',
     },
-    headerRight: {
-        flexDirection: "row",
-        gap: 8,
-    },
-    headerBtn: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: MESSENGER.surfaceGray,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-
-    // Search
     searchContainer: {
-        paddingHorizontal: 16,
-        paddingBottom: 12,
+        paddingHorizontal: 20,
+        paddingBottom: 10,
     },
     searchBar: {
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: MESSENGER.surfaceGray,
-        borderRadius: 20,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        gap: 8,
+        backgroundColor: 'rgba(255,255,255,0.15)',
+        borderRadius: 16,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        gap: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.2)',
     },
     searchInput: {
         flex: 1,
-        fontSize: 15,
-        color: MESSENGER.textPrimary,
+        fontSize: 14,
+        fontFamily: 'Inter-Medium',
+        color: '#fff',
     },
 
-    // Stories
-    storiesContainer: {
-        maxHeight: 110,
-        borderBottomWidth: 1,
-        borderBottomColor: MESSENGER.border,
+    // Sections
+    sectionContainer: {
+        marginTop: 12,
     },
-    storiesContent: {
-        paddingHorizontal: 12,
-        paddingVertical: 12,
+    sectionLabel: {
+        fontSize: 14,
+        fontFamily: 'Outfit-SemiBold',
+        color: MESSENGER.textPrimary,
+        marginLeft: 20,
+        marginBottom: 12,
+    },
+
+    // Online List
+    onlineList: {
+        paddingHorizontal: 20,
         gap: 16,
     },
-    storyItem: {
+    onlineItem: {
         alignItems: "center",
-        width: 70,
+        width: 64,
+        gap: 6,
     },
-    addStoryCircle: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: MESSENGER.surfaceGray,
-        justifyContent: "center",
-        alignItems: "center",
-        marginBottom: 4,
-    },
-    storyAvatarWrapper: {
+    onlineAvatarWrapper: {
         position: "relative",
-        marginBottom: 4,
     },
-    storyAvatar: {
+    onlineAvatar: {
         width: 56,
         height: 56,
         borderRadius: 28,
-        borderWidth: 3,
-        borderColor: MESSENGER.primary,
+        borderWidth: 2,
+        borderColor: '#fff',
     },
-    storyOnlineDot: {
+    onlineDot: {
         position: "absolute",
-        bottom: 2,
-        right: 2,
+        bottom: 0,
+        right: 0,
         width: 14,
         height: 14,
         borderRadius: 7,
@@ -350,118 +360,136 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         borderColor: "#fff",
     },
-    storyName: {
-        fontSize: 12,
+    onlineName: {
+        fontSize: 11,
+        fontFamily: 'Inter-Medium',
         color: MESSENGER.textSecondary,
         textAlign: "center",
     },
 
-    // Conversations
-    conversationsList: {
-        flex: 1,
-    },
-    conversationsContent: {
-        paddingTop: 8,
+    // Conversations List
+    listContainer: {
+        backgroundColor: '#fff',
+        marginHorizontal: 20,
+        borderRadius: 20,
+        padding: 8,
+        borderWidth: 1,
+        borderColor: MESSENGER.border,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.02,
+        shadowRadius: 8,
+        elevation: 1,
     },
     conversationItem: {
         flexDirection: "row",
         alignItems: "center",
-        paddingHorizontal: 16,
-        paddingVertical: 10,
+        paddingVertical: 12,
+        paddingHorizontal: 8,
+        gap: 14,
+    },
+    conversationBorder: {
+        borderBottomWidth: 1,
+        borderBottomColor: MESSENGER.border,
     },
     conversationAvatar: {
         position: "relative",
-        marginRight: 14,
     },
     avatar: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
+        width: 52,
+        height: 52,
+        borderRadius: 26,
+        backgroundColor: '#F1F5F9',
     },
-    onlineDot: {
+    onlineDotSmall: {
         position: "absolute",
-        bottom: 2,
-        right: 2,
-        width: 14,
-        height: 14,
-        borderRadius: 7,
+        bottom: 0,
+        right: 0,
+        width: 12,
+        height: 12,
+        borderRadius: 6,
         backgroundColor: MESSENGER.online,
         borderWidth: 2,
         borderColor: "#fff",
     },
     conversationContent: {
         flex: 1,
+        gap: 4,
+    },
+    conversationHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    conversationFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
     },
     conversationName: {
         fontSize: 15,
-        fontWeight: "500",
+        fontFamily: 'Outfit-SemiBold',
         color: MESSENGER.textPrimary,
-        marginBottom: 2,
     },
-    conversationNameUnread: {
-        fontWeight: "700",
+    textBold: {
+        fontFamily: 'Outfit-Bold',
     },
-    conversationPreview: {
-        flexDirection: "row",
-        alignItems: "center",
+    textBoldPrimary: {
+        fontFamily: 'Inter-SemiBold',
+        color: MESSENGER.textPrimary,
     },
     conversationMessage: {
-        fontSize: 14,
+        fontSize: 13,
+        fontFamily: 'Inter-Regular',
         color: MESSENGER.textSecondary,
         flex: 1,
-    },
-    conversationMessageUnread: {
-        color: MESSENGER.textPrimary,
-        fontWeight: "600",
+        marginRight: 16,
     },
     conversationTime: {
-        fontSize: 14,
+        fontSize: 11,
+        fontFamily: 'Inter-Regular',
         color: MESSENGER.textSecondary,
     },
-    unreadDot: {
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-        backgroundColor: MESSENGER.primary,
-        marginLeft: 8,
+    unreadBadge: {
+        minWidth: 20,
+        height: 20,
+        borderRadius: 10,
+        backgroundColor: Colors.primary,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 6,
+    },
+    unreadText: {
+        fontSize: 10,
+        fontFamily: 'Inter-Bold',
+        color: '#fff',
     },
 
     // Empty State
     emptyState: {
         alignItems: "center",
-        paddingVertical: 60,
+        paddingVertical: 40,
         paddingHorizontal: 40,
+        gap: 12,
     },
     emptyIcon: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: MESSENGER.surfaceGray,
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: '#F1F5F9',
         justifyContent: "center",
         alignItems: "center",
-        marginBottom: 16,
     },
     emptyTitle: {
-        fontSize: 18,
-        fontWeight: "700",
+        fontSize: 16,
+        fontFamily: 'Outfit-Bold',
         color: MESSENGER.textPrimary,
-        marginBottom: 8,
     },
     emptyDesc: {
-        fontSize: 14,
+        fontSize: 13,
+        fontFamily: 'Inter-Regular',
         color: MESSENGER.textSecondary,
         textAlign: "center",
-        marginBottom: 20,
-    },
-    emptyBtn: {
-        backgroundColor: MESSENGER.primary,
-        paddingHorizontal: 24,
-        paddingVertical: 10,
-        borderRadius: 20,
-    },
-    emptyBtnText: {
-        color: "#fff",
-        fontSize: 15,
-        fontWeight: "600",
+        lineHeight: 18,
     },
 });

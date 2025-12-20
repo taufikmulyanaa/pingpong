@@ -17,6 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams, Stack } from "expo-router";
 import { Colors } from "../../src/lib/constants";
+import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from "../../src/lib/supabase";
 import { useAuthStore } from "../../src/stores/authStore";
 
@@ -466,6 +467,12 @@ export default function ClubDetailScreen() {
                                 </TouchableOpacity>
                             ))}
                         </ScrollView>
+
+                        {/* Premium Header Gradient Overlay */}
+                        <LinearGradient
+                            colors={['rgba(15,23,42,0.8)', 'transparent']}
+                            style={styles.headerOverlay}
+                        />
 
                         {/* Image Indicators */}
                         {galleryImages.length > 1 && (
@@ -1237,8 +1244,15 @@ const styles = StyleSheet.create({
     },
     galleryImage: {
         width: SCREEN_WIDTH,
-        height: 220,
-        backgroundColor: "#E5E7EB",
+        height: 250,
+        backgroundColor: '#1E1A4E',
+    },
+    headerOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 100,
     },
     imageIndicators: {
         position: "absolute",

@@ -7,6 +7,8 @@ import {
     Image,
     StyleSheet,
     RefreshControl,
+    Platform,
+    Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -15,6 +17,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useMatchStore } from "@/stores/matchStore";
 import { Colors, getLevelTitle, getXpProgress } from "@/lib/constants";
 import { supabase } from "@/lib/supabase";
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Helper to get greeting based on time
 const getGreeting = (): string => {
@@ -35,7 +38,6 @@ export default function HomeScreen() {
     const [dailyStats, setDailyStats] = React.useState({ matches: 0, wins: 0, mrChange: 0 });
     const [nearbyClubs, setNearbyClubs] = React.useState<any[]>([]);
     const [pendingMemberRequests, setPendingMemberRequests] = React.useState(0);
-
 
     const fetchUnreadNotifications = async () => {
         if (!profile?.id) return;
@@ -94,7 +96,6 @@ export default function HomeScreen() {
 
     React.useEffect(() => {
         if (profile?.id) {
-
             fetchChallenges(profile.id);
             fetchUnreadNotifications();
         }
@@ -161,38 +162,46 @@ export default function HomeScreen() {
 
     const xpProgress = profile ? getXpProgress(profile.xp) : { current: 0, max: 1000, percentage: 0 };
     const levelTitle = profile ? getLevelTitle(profile.level) : "Pemula";
-    const winRate = profile && profile.total_matches > 0
-        ? Math.round((profile.wins / profile.total_matches) * 100)
-        : 0;
 
-    // Light mode only
-    const bgColor = Colors.background;
-    const cardColor = Colors.card;
-    const textColor = Colors.text;
+    // Light mode only for premium feel
+    const bgColor = '#FFFFFF'; // Soft Slate
+    const cardColor = '#FFFFFF';
+    const textColor = Colors.secondary; // Deep Blue for main text
     const mutedColor = Colors.muted;
+    const borderColor = 'rgba(0,0,0,0.05)';
+    const shadowStyle = {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.02,
+        shadowRadius: 8,
+        elevation: 1,
+    };
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={["top"]}>
-            <ScrollView
-                style={styles.scrollView}
-                contentContainerStyle={styles.content}
-                showsVerticalScrollIndicator={false}
-                refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
-                }
+        <View style={[styles.container, { backgroundColor: bgColor }]}>
+            {/* Header with Luxury LinearGradient */}
+            <LinearGradient
+                colors={[Colors.secondary, '#000830']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.headerGradient}
             >
-                {/* Header - Navy Elegant */}
-                <View style={styles.header}>
-                    {/* User Profile Row */}
+                {/* Abstract Background Decorations */}
+                <View style={styles.bgDecorationCircle1} />
+                <View style={styles.bgDecorationCircle2} />
+
+                <SafeAreaView edges={['top']}>
                     <View style={styles.headerTop}>
                         <View style={styles.userInfo}>
                             <View style={styles.avatarContainer}>
-                                <Image
-                                    source={{
-                                        uri: profile?.avatar_url || `https://ui-avatars.com/api/?name=${profile?.name || "User"}&background=1a237e&color=fff`,
-                                    }}
-                                    style={styles.avatar}
-                                />
+                                <View style={styles.avatarBorderGlow}>
+                                    <Image
+                                        source={{
+                                            uri: profile?.avatar_url || `https://ui-avatars.com/api/?name=${profile?.name || "User"}&background=1a237e&color=fff`,
+                                        }}
+                                        style={styles.avatar}
+                                    />
+                                </View>
                                 <View style={styles.onlineIndicator} />
                             </View>
                             <View>
@@ -204,7 +213,7 @@ export default function HomeScreen() {
                             style={styles.notificationBtn}
                             onPress={() => router.push("/notifications")}
                         >
-                            <MaterialIcons name="notifications" size={22} color="#fff" />
+                            <MaterialIcons name="notifications-none" size={24} color="#fff" />
                             {unreadNotifications > 0 && (
                                 <View style={styles.notificationBadgeCount}>
                                     <Text style={styles.notificationCountText}>
@@ -215,164 +224,169 @@ export default function HomeScreen() {
                         </TouchableOpacity>
                     </View>
 
-                    {/* Stats Card - Glassmorphism */}
-                    <View style={styles.statsCard}>
-                        {/* Level & MR Row */}
-                        <View style={styles.levelInfo}>
-                            <View style={styles.levelBadge}>
-                                <View style={styles.levelIconGlow}>
-                                    <MaterialIcons name="military-tech" size={24} color="#F59E0B" />
+                    {/* Quick Stats Card - Premium Glassmorphism */}
+                    <View style={styles.statsCardWrapper}>
+                        <View style={styles.statsCardGlass}>
+                            {/* Subtle white overlay for glass feel */}
+                            <View style={styles.glassOverlay} />
+
+                            {/* Content */}
+                            <View style={{ gap: 16 }}>
+                                {/* Level & MR Row */}
+                                <View style={styles.levelInfo}>
+                                    <View style={styles.levelBadge}>
+                                        <View style={styles.levelIconGlow}>
+                                            <MaterialIcons name="military-tech" size={24} color="#FFD700" />
+                                        </View>
+                                        <View>
+                                            <Text style={styles.levelLabel}>Current Rank</Text>
+                                            <Text style={styles.levelTitle}>{levelTitle}</Text>
+                                        </View>
+                                    </View>
+                                    <View style={styles.mrBadge}>
+                                        <View style={styles.mrIcon}>
+                                            <MaterialIcons name="emoji-events" size={14} color="#fff" />
+                                        </View>
+                                        <Text style={styles.mrText}>{profile?.rating_mr || 1000} MR</Text>
+                                    </View>
                                 </View>
-                                <View>
-                                    <Text style={styles.levelLabel}>Level {profile?.level || 1}</Text>
-                                    <Text style={styles.levelTitle}>{levelTitle}</Text>
+
+                                {/* XP Progress */}
+                                <View style={styles.xpContainer}>
+                                    <View style={styles.xpLabelRow}>
+                                        <Text style={styles.xpLabel}>Level {profile?.level || 1} Progress</Text>
+                                        <Text style={styles.xpValue}>
+                                            {xpProgress.current.toLocaleString()} / {xpProgress.max.toLocaleString()}
+                                        </Text>
+                                    </View>
+                                    <View style={styles.xpBarBackground}>
+                                        <LinearGradient
+                                            colors={['#F59E0B', '#FBBF24']}
+                                            start={{ x: 0, y: 0 }}
+                                            end={{ x: 1, y: 0 }}
+                                            style={[styles.xpBarFill, { width: `${xpProgress.percentage}%` }]}
+                                        />
+                                    </View>
                                 </View>
-                            </View>
-                            <View style={styles.mrBadge}>
-                                <MaterialIcons name="emoji-events" size={16} color="#F59E0B" />
-                                <Text style={styles.mrText}>{profile?.rating_mr || 1000}</Text>
                             </View>
                         </View>
+                    </View>
+                </SafeAreaView>
+            </LinearGradient>
 
-                        {/* XP Progress */}
-                        <View style={styles.xpContainer}>
-                            <View style={styles.xpLabelRow}>
-                                <Text style={styles.xpLabel}>XP Progress</Text>
-                                <Text style={styles.xpValue}>
-                                    {xpProgress.current.toLocaleString()} / {xpProgress.max.toLocaleString()}
-                                </Text>
-                            </View>
-                            <View style={styles.xpBar}>
-                                <View style={[styles.xpFillGradient, { width: `${xpProgress.percentage}%` }]} />
-                            </View>
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.content}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
+                }
+            >
+                {/* Spacer because header is tall */}
+                <View style={{ height: 24 }} />
+
+                {/* Hub Actions Grid */}
+                <View style={[styles.section, { paddingHorizontal: 20 }]}>
+                    <View style={styles.hubGrid}>
+                        {[
+                            { icon: "search", label: "Cari Lawan", route: "/cari", color: "#EF4444" },
+                            { icon: "groups", label: "Klub PTM", route: "/club", color: "#8B5CF6" },
+                            { icon: "leaderboard", label: "Ranking", route: "/leaderboard", color: "#F59E0B" },
+                            { icon: "flash-on", label: "Quick Match", route: "/match/quick", color: "#F59E0B" },
+                            { icon: "qr-code-scanner", label: "Scan QR", route: "/scan", color: Colors.blueMid },
+                            { icon: "emoji-events", label: "Turnamen", route: "/tournament", color: "#F59E0B" },
+
+                        ].map((item, index) => (
+                            <TouchableOpacity
+                                key={index}
+                                style={[styles.hubItem, { backgroundColor: cardColor, borderColor }, shadowStyle]}
+                                onPress={() => router.push(item.route as any)}
+                            >
+                                <View style={[styles.hubIconCircle, { backgroundColor: item.color + '10' }]}>
+                                    <MaterialIcons name={item.icon as any} size={26} color={item.color} />
+                                </View>
+                                <Text style={[styles.hubLabel, { color: textColor }]}>{item.label}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </View>
+
+                {/* Daily Stats Row - Clean Style */}
+                <View style={[styles.section, { paddingHorizontal: 20, marginTop: 8 }]}>
+                    <View style={[styles.dailyStatsCard, { backgroundColor: cardColor, borderColor }, shadowStyle]}>
+                        <View style={styles.dailyStatItem}>
+                            <Text style={[styles.dailyStatValue, { color: textColor }]}>{dailyStats.matches}</Text>
+                            <Text style={styles.dailyStatLabel}>Match</Text>
                         </View>
-
-                        {/* Stats Hari Ini Row */}
-                        <View style={styles.statRow}>
-                            <View style={styles.statItem}>
-                                <Text style={styles.statValue}>{dailyStats.matches}</Text>
-                                <Text style={styles.statLabel}>Match</Text>
-                            </View>
-                            <View style={styles.statDivider} />
-                            <View style={styles.statItem}>
-                                <Text style={styles.statValue}>{dailyStats.wins}</Text>
-                                <Text style={styles.statLabel}>Menang</Text>
-                            </View>
-                            <View style={styles.statDivider} />
-                            <View style={styles.statItem}>
-                                <Text style={[styles.statValue, { color: dailyStats.mrChange >= 0 ? "#22C55E" : "#EF4444" }]}>
-                                    {dailyStats.mrChange >= 0 ? "+" : ""}{dailyStats.mrChange}
-                                </Text>
-                                <Text style={styles.statLabel}>MR</Text>
-                            </View>
+                        <View style={styles.dailyStatDivider} />
+                        <View style={styles.dailyStatItem}>
+                            <Text style={[styles.dailyStatValue, { color: '#10B981' }]}>{dailyStats.wins}</Text>
+                            <Text style={styles.dailyStatLabel}>Menang</Text>
+                        </View>
+                        <View style={styles.dailyStatDivider} />
+                        <View style={styles.dailyStatItem}>
+                            <Text style={[styles.dailyStatValue, { color: dailyStats.mrChange >= 0 ? "#10B981" : "#EF4444" }]}>
+                                {dailyStats.mrChange > 0 ? "+" : ""}{dailyStats.mrChange}
+                            </Text>
+                            <Text style={styles.dailyStatLabel}>MR</Text>
                         </View>
                     </View>
                 </View>
 
                 {/* Pending Member Requests for PTM Owners */}
                 {pendingMemberRequests > 0 && (
-                    <TouchableOpacity
-                        style={[styles.challengeCard, { backgroundColor: "#CF0F0F" }]}
-                        onPress={() => router.push("/club/approval" as any)}
-                    >
-                        <View style={styles.challengeContent}>
-                            <MaterialIcons name="person-add" size={24} color="#fff" />
-                            <View>
-                                <Text style={styles.challengeTitle}>
+                    <View style={styles.section}>
+                        <TouchableOpacity
+                            style={[styles.alertCard, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}
+                            onPress={() => router.push("/club/approval" as any)}
+                        >
+                            <View style={styles.alertIcon}>
+                                <MaterialIcons name="notifications-active" size={24} color="#EF4444" />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={[styles.alertTitle, { color: '#991B1B' }]}>
                                     {pendingMemberRequests} Permintaan Bergabung
                                 </Text>
-                                <Text style={styles.challengeSubtitle}>
+                                <Text style={[styles.alertDesc, { color: '#B91C1C' }]}>
                                     Ada anggota ingin join PTM kamu
                                 </Text>
                             </View>
-                        </View>
-                        <View style={styles.challengeBtn}>
-                            <Text style={styles.challengeBtnText}>Lihat</Text>
-                        </View>
-                    </TouchableOpacity>
-                )}
-
-                {/* Menu Utama - Icon Only Grid */}
-                <View style={styles.section}>
-
-                    <View style={styles.hubGrid}>
-                        <TouchableOpacity style={styles.hubItem} onPress={() => router.push("/cari")}>
-                            <View style={styles.hubIconCompact}>
-                                <MaterialIcons name="sports-tennis" size={26} color="#EF4444" />
-                            </View>
-                            <Text style={[styles.hubLabel, { color: textColor }]}>Cari Lawan</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.hubItem} onPress={() => router.push("/club" as any)}>
-                            <View style={styles.hubIconCompact}>
-                                <MaterialIcons name="groups" size={26} color="#8B5CF6" />
-                            </View>
-                            <Text style={[styles.hubLabel, { color: textColor }]}>Klub PTM</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.hubItem} onPress={() => router.push("/leaderboard" as any)}>
-                            <View style={styles.hubIconCompact}>
-                                <MaterialIcons name="leaderboard" size={26} color="#F59E0B" />
-                            </View>
-                            <Text style={[styles.hubLabel, { color: textColor }]}>Leaderboard</Text>
-                        </TouchableOpacity>
-
-
-
-                        <TouchableOpacity style={styles.hubItem} onPress={() => router.push("/match/quick")}>
-                            <View style={styles.hubIconCompact}>
-                                <MaterialIcons name="flash-on" size={26} color="#F59E0B" />
-                            </View>
-                            <Text style={[styles.hubLabel, { color: textColor }]}>Quick Match</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.hubItem} onPress={() => router.push("/scan")}>
-                            <View style={styles.hubIconCompact}>
-                                <MaterialIcons name="qr-code-scanner" size={26} color={Colors.blueMid} />
-                            </View>
-                            <Text style={[styles.hubLabel, { color: textColor }]}>Scan QR</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.hubItem} onPress={() => router.push("/tournament" as any)}>
-                            <View style={styles.hubIconCompact}>
-                                <MaterialIcons name="emoji-events" size={26} color="#F59E0B" />
-                            </View>
-                            <Text style={[styles.hubLabel, { color: textColor }]}>Turnamen</Text>
+                            <MaterialIcons name="chevron-right" size={24} color="#EF4444" />
                         </TouchableOpacity>
                     </View>
-                </View>
-
-
-
-
-
+                )}
 
                 {/* Tantangan Masuk */}
                 <View style={styles.section}>
-
+                    <View style={styles.sectionHeader}>
+                        <Text style={[styles.sectionTitle, { color: textColor }]}>Tantangan Masuk</Text>
+                        {pendingChallenges.length > 0 && (
+                            <View style={styles.badgeCount}>
+                                <Text style={styles.badgeCountText}>{pendingChallenges.length}</Text>
+                            </View>
+                        )}
+                    </View>
 
                     {pendingChallenges.length > 0 ? (
                         <View style={{ gap: 12 }}>
                             {pendingChallenges.map((challenge: any) => (
-                                <View key={challenge.id} style={[styles.challengeItemCard, { backgroundColor: cardColor, borderColor: "rgba(0,0,0,0.05)" }]}>
-                                    <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                                <View key={challenge.id} style={[styles.challengeCard, { backgroundColor: cardColor, borderColor }, shadowStyle]}>
+                                    <View style={styles.challengeHeader}>
                                         <Image
-                                            source={{ uri: challenge.challenger?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(challenge.challenger?.name || "User")}&background=4169E1&color=fff` }}
-                                            style={{ width: 48, height: 48, borderRadius: 24 }}
+                                            source={{ uri: challenge.challenger?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(challenge.challenger?.name || "User")}&background=random` }}
+                                            style={styles.challengeAvatar}
                                         />
                                         <View style={{ flex: 1 }}>
-                                            <Text style={[styles.challengeItemName, { color: textColor }]}>{challenge.challenger?.name || "Pemain"}</Text>
-                                            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                                                <MaterialIcons name={challenge.match_type === "RANKED" ? "emoji-events" : "sports-tennis"} size={14} color={challenge.match_type === "RANKED" ? "#F59E0B" : Colors.primary} />
-                                                <Text style={[styles.challengeItemType, { color: mutedColor }]}>
-                                                    {challenge.match_type === "RANKED" ? "Ranked" : "Friendly"} • Best of {challenge.best_of}
-                                                </Text>
-                                            </View>
+                                            <Text style={[styles.challengeName, { color: textColor }]}>{challenge.challenger?.name || "Pemain"}</Text>
+                                            <Text style={styles.challengeMeta}>
+                                                {challenge.match_type === "RANKED" ? "Ranked Match" : "Friendly Match"} • Best of {challenge.best_of}
+                                            </Text>
                                         </View>
                                     </View>
-                                    <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+
+                                    <View style={styles.challengeActions}>
                                         <TouchableOpacity
-                                            style={[styles.challengeDeclineBtn, { borderColor: mutedColor }]}
+                                            style={[styles.challengeBtn, styles.declineBtn]}
                                             onPress={() => {
                                                 const { respondToChallenge, fetchChallenges } = useMatchStore.getState();
                                                 respondToChallenge(challenge.id, false).then(() => {
@@ -380,10 +394,10 @@ export default function HomeScreen() {
                                                 });
                                             }}
                                         >
-                                            <Text style={[styles.challengeDeclineText, { color: mutedColor }]}>Tolak</Text>
+                                            <Text style={styles.declineBtnText}>Tolak</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity
-                                            style={[styles.challengeAcceptBtn, { backgroundColor: Colors.primary }]}
+                                            style={[styles.challengeBtn, styles.acceptBtn]}
                                             onPress={() => {
                                                 const { respondToChallenge, fetchChallenges } = useMatchStore.getState();
                                                 respondToChallenge(challenge.id, true).then(() => {
@@ -391,162 +405,119 @@ export default function HomeScreen() {
                                                 });
                                             }}
                                         >
-                                            <Text style={styles.challengeAcceptText}>Terima</Text>
+                                            <Text style={styles.acceptBtnText}>Terima</Text>
                                         </TouchableOpacity>
                                     </View>
                                 </View>
                             ))}
                         </View>
                     ) : (
-                        <View style={[styles.emptyState, { backgroundColor: cardColor }]}>
-                            <MaterialIcons name="mail-outline" size={40} color={mutedColor} />
+                        <View style={[styles.emptyState, { backgroundColor: cardColor, borderColor, borderStyle: 'dashed' }]}>
+                            <View style={[styles.emptyIconCircle, { backgroundColor: '#F3F4F6' }]}>
+                                <MaterialIcons name="mail-outline" size={24} color={mutedColor} />
+                            </View>
                             <Text style={[styles.emptyStateText, { color: mutedColor }]}>Belum ada tantangan masuk</Text>
                         </View>
                     )}
                 </View>
 
 
-                {/* Streak & Head-to-Head */}
+                {/* Streak & H2H */}
                 <View style={styles.section}>
-                    <View style={styles.streakH2HContainer}>
-                        {/* Streak Info - use profile data */}
-                        <View style={styles.streakCardHighlight}>
-                            <View style={styles.streakHeader}>
+                    <View style={styles.grid2}>
+                        {/* Streak */}
+                        <View style={[styles.statBox, { backgroundColor: cardColor, borderColor }, shadowStyle]}>
+                            <View style={[styles.statBoxIcon, { backgroundColor: '#FFF7ED' }]}>
                                 <MaterialIcons name="local-fire-department" size={24} color="#F59E0B" />
-                                <Text style={[styles.streakTitle, { color: textColor }]}>Streak</Text>
                             </View>
-                            <Text style={[styles.streakValue, { color: "#F59E0B" }]}>{profile?.current_streak || 0}</Text>
-                            <Text style={[styles.streakLabel, { color: profile?.current_streak ? "#22C55E" : mutedColor }]}>
-                                {profile?.current_streak ? "WIN STREAK" : "NO STREAK"}
-                            </Text>
+                            <View>
+                                <Text style={[styles.statBoxValue, { color: textColor }]}>{profile?.current_streak || 0}</Text>
+                                <Text style={styles.statBoxLabel}>Win Streak</Text>
+                            </View>
                         </View>
 
-                        {/* Head-to-Head */}
-                        <View style={[styles.h2hCard, { backgroundColor: cardColor }]}>
-                            <Text style={[styles.h2hTitle, { color: textColor }]}>vs Lawan Terakhir</Text>
+                        {/* Recent Match */}
+                        <TouchableOpacity
+                            style={[styles.statBox, { backgroundColor: cardColor, borderColor }, shadowStyle]}
+                            onPress={() => router.push('/match/history' as any)}
+                        >
+                            <View style={[styles.statBoxIcon, { backgroundColor: '#EFF6FF' }]}>
+                                <MaterialIcons name="history" size={24} color={Colors.primary} />
+                            </View>
                             {matches.length > 0 && matches[0].status === 'COMPLETED' ? (
-                                <View style={{ marginTop: 12 }}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                                        <Text style={{ color: mutedColor, fontSize: 12 }}>
-                                            {new Date(matches[0].completed_at!).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
-                                        </Text>
-                                        <View style={[styles.matchResultBadge, { backgroundColor: matches[0].winner_id === profile?.id ? '#22C55E' : '#EF4444' }]}>
-                                            <Text style={styles.matchResultText}>
-                                                {matches[0].winner_id === profile?.id ? 'MENANG' : 'KALAH'}
-                                            </Text>
-                                        </View>
-                                    </View>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                                        <Image
-                                            source={{
-                                                uri: (matches[0]?.winner_id === profile?.id ?
-                                                    (matches[0]?.player1_id === profile?.id ? matches[0]?.player2 : matches[0]?.player1) :
-                                                    (matches[0]?.winner!))?.avatar_url || "https://ui-avatars.com/api/?background=random"
-                                            }}
-                                            style={{ width: 40, height: 40, borderRadius: 20 }}
-                                        />
-                                        <View>
-                                            <Text style={{ color: textColor, fontWeight: 'bold' }}>
-                                                {matches[0]?.winner_id === profile?.id ?
-                                                    (matches[0]?.player1_id === profile?.id ? (matches[0]?.player2 as any)?.name : (matches[0]?.player1 as any)?.name) :
-                                                    (matches[0]?.winner as any)?.name}
-                                            </Text>
-                                            <Text style={{ color: mutedColor, fontSize: 12 }}>
-                                                {(matches[0] as any).sets?.map((s: any) =>
-                                                    matches[0]?.player1_id === profile?.id ?
-                                                        `${s.player1_score}-${s.player2_score}` :
-                                                        `${s.player2_score}-${s.player1_score}`
-                                                ).join(', ')}
-                                            </Text>
-                                        </View>
-                                    </View>
+                                <View>
+                                    <Text style={[styles.statBoxValue, { color: textColor, fontSize: 16 }]}>
+                                        {matches[0].winner_id === profile?.id ? "WIN" : "LOSS"}
+                                    </Text>
+                                    <Text style={[styles.statBoxLabel, { fontSize: 10 }]} numberOfLines={1}>
+                                        vs {matches[0].winner_id === profile?.id ?
+                                            (matches[0].player1_id === profile?.id ? (matches[0].player2 as any)?.name : (matches[0].player1 as any)?.name) :
+                                            (matches[0].winner as any)?.name}
+                                    </Text>
                                 </View>
                             ) : (
-                                <View style={[styles.emptyStateSmall, { paddingVertical: 12 }]}>
-                                    <MaterialIcons name="sports-tennis" size={24} color={mutedColor} />
-                                    <Text style={[styles.emptyStateTextSmall, { color: mutedColor }]}>Belum ada match</Text>
+                                <View>
+                                    <Text style={[styles.statBoxValue, { color: mutedColor, fontSize: 13 }]}>No Match</Text>
+                                    <Text style={styles.statBoxLabel}>Last Game</Text>
                                 </View>
                             )}
-                        </View>
-                    </View>
-                </View>
-
-
-
-                {/* Upcoming Match */}
-                <View style={styles.section}>
-
-
-                    <View style={[styles.emptyState, { backgroundColor: cardColor }]}>
-                        <MaterialIcons name="event-busy" size={40} color={mutedColor} />
-                        <Text style={[styles.emptyStateText, { color: mutedColor }]}>Belum ada jadwal match</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
 
                 {/* PTM Terdekat */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
-                        <View style={styles.sectionTitleRow}>
-                            <MaterialIcons name="place" size={20} color="#EF4444" />
-                            <Text style={[styles.sectionTitle, { color: textColor }]}>PTM Terdekat</Text>
-                        </View>
+                        <Text style={[styles.sectionTitle, { color: textColor }]}>PTM Terdekat</Text>
                         <TouchableOpacity onPress={() => router.push("/club" as any)}>
                             <Text style={styles.seeAll}>Lihat Semua</Text>
                         </TouchableOpacity>
                     </View>
 
-
-
                     {nearbyClubs.length > 0 ? (
-                        <View style={{ gap: 12 }}>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.clubList}>
                             {nearbyClubs.map((club) => (
                                 <TouchableOpacity
                                     key={club.id}
-                                    style={[styles.clubCard, { backgroundColor: cardColor, borderColor: "rgba(0,0,0,0.05)" }]}
+                                    style={[styles.clubCard, { backgroundColor: cardColor, borderColor }, shadowStyle]}
                                     onPress={() => router.push({ pathname: "/club/[id]", params: { id: club.id } })}
                                 >
-                                    <View style={{ flexDirection: "row", gap: 12 }}>
-                                        <Image
-                                            source={{ uri: club.logo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(club.name)}&background=random` }}
-                                            style={styles.clubLogo}
-                                        />
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={[styles.clubName, { color: textColor }]} numberOfLines={1}>{club.name}</Text>
-                                            <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 }}>
-                                                <MaterialIcons name="location-on" size={14} color={mutedColor} />
-                                                <Text style={[styles.clubCity, { color: mutedColor }]}>{club.city}</Text>
+                                    <Image
+                                        source={{ uri: club.logo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(club.name)}&background=random` }}
+                                        style={styles.clubLogo}
+                                    />
+                                    <View style={styles.clubInfo}>
+                                        <Text style={[styles.clubName, { color: textColor }]} numberOfLines={1}>{club.name}</Text>
+                                        <Text style={styles.clubCity} numberOfLines={1}>{club.city}</Text>
+
+                                        <View style={styles.clubStatsRow}>
+                                            <View style={styles.clubStat}>
+                                                <MaterialIcons name="star" size={12} color="#F59E0B" />
+                                                <Text style={styles.clubStatText}>{club.avg_rating_mr || "-"}</Text>
                                             </View>
-                                            <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 8 }}>
-                                                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                                                    <MaterialIcons name="star" size={14} color="#F59E0B" />
-                                                    <Text style={[styles.clubStatText, { color: mutedColor }]}>{club.avg_rating_mr || "-"}</Text>
-                                                </View>
-                                                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                                                    <MaterialIcons name="group" size={14} color={Colors.primary} />
-                                                    <Text style={[styles.clubStatText, { color: mutedColor }]}>{club.member_count || 0} Anggota</Text>
-                                                </View>
+                                            <View style={styles.clubStat}>
+                                                <MaterialIcons name="group" size={12} color={mutedColor} />
+                                                <Text style={styles.clubStatText}>{club.member_count || 0}</Text>
                                             </View>
                                         </View>
                                     </View>
                                 </TouchableOpacity>
                             ))}
-                        </View>
+                        </ScrollView>
                     ) : (
-                        <View style={[styles.emptyState, { backgroundColor: cardColor }]}>
-                            <MaterialIcons name="location-off" size={40} color={mutedColor} />
+                        <View style={[styles.emptyState, { backgroundColor: cardColor, borderColor, borderStyle: 'dashed' }]}>
+                            <View style={[styles.emptyIconCircle, { backgroundColor: '#F3F4F6' }]}>
+                                <MaterialIcons name="location-off" size={24} color={mutedColor} />
+                            </View>
                             <Text style={[styles.emptyStateText, { color: mutedColor }]}>Belum ada PTM di sekitar</Text>
                         </View>
                     )}
                 </View>
 
-
-
-
-
                 {/* Bottom padding for tab bar */}
                 <View style={{ height: 100 }} />
             </ScrollView>
-        </SafeAreaView >
+        </View>
     );
 }
 
@@ -558,21 +529,42 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     content: {
-        paddingBottom: 100,
+        paddingBottom: 40,
     },
-    header: {
-        backgroundColor: "#001064",
-        paddingTop: 12,
+    headerGradient: {
         paddingBottom: 24,
-        paddingHorizontal: 20,
-        borderBottomLeftRadius: 28,
-        borderBottomRightRadius: 28,
+        borderBottomLeftRadius: 36,
+        borderBottomRightRadius: 36,
+        position: 'relative',
+        overflow: 'hidden',
     },
+    // Decorations
+    bgDecorationCircle1: {
+        position: 'absolute',
+        top: -50,
+        right: -50,
+        width: 200,
+        height: 200,
+        borderRadius: 100,
+        backgroundColor: 'rgba(255,255,255,0.03)',
+    },
+    bgDecorationCircle2: {
+        position: 'absolute',
+        top: 100,
+        left: -30,
+        width: 140,
+        height: 140,
+        borderRadius: 70,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+    },
+
     headerTop: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 20,
+        paddingHorizontal: 20,
+        paddingTop: 12,
+        marginBottom: 24,
     },
     userInfo: {
         flexDirection: "row",
@@ -580,863 +572,454 @@ const styles = StyleSheet.create({
         gap: 14,
     },
     avatarContainer: {
-        position: "relative",
+        position: 'relative',
+    },
+    avatarBorderGlow: {
+        padding: 2,
+        borderRadius: 30,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.2)',
     },
     avatar: {
         width: 52,
         height: 52,
         borderRadius: 26,
-        borderWidth: 3,
-        borderColor: "rgba(255,255,255,0.3)",
     },
     onlineIndicator: {
-        position: "absolute",
+        position: 'absolute',
         bottom: 2,
         right: 2,
         width: 14,
         height: 14,
         borderRadius: 7,
-        backgroundColor: "#22C55E",
-        borderWidth: 3,
-        borderColor: "#001064",
+        backgroundColor: '#10B981',
+        borderWidth: 2,
+        borderColor: '#1E1A4E', // Match gradient bg
     },
     greeting: {
-        color: "rgba(255,255,255,0.7)",
         fontSize: 13,
-        letterSpacing: 0.3,
+        fontFamily: 'Inter-Medium',
+        color: 'rgba(255,255,255,0.7)',
+        letterSpacing: 0.5,
     },
     userName: {
-        color: "#fff",
-        fontSize: 20,
-        fontWeight: "700",
+        fontSize: 18,
+        fontFamily: 'Outfit-Bold',
+        color: '#fff',
         letterSpacing: 0.5,
     },
     notificationBtn: {
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: "rgba(255,255,255,0.12)",
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    notificationBadge: {
-        position: "absolute",
-        top: 10,
-        right: 10,
-        width: 10,
-        height: 10,
-        borderRadius: 5,
-        backgroundColor: "#F59E0B",
-        borderWidth: 2,
-        borderColor: "#001064",
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
     },
     notificationBadgeCount: {
-        position: "absolute",
-        top: 6,
-        right: 6,
-        minWidth: 18,
-        height: 18,
-        borderRadius: 9,
-        backgroundColor: "#EF4444",
-        justifyContent: "center",
-        alignItems: "center",
-        paddingHorizontal: 4,
-        borderWidth: 2,
-        borderColor: "#001064",
+        position: 'absolute',
+        top: 10,
+        right: 10,
+        backgroundColor: '#EF4444',
+        borderRadius: 6,
+        width: 8,
+        height: 8,
     },
     notificationCountText: {
-        fontSize: 10,
-        fontWeight: "700",
-        color: "#fff",
+        display: 'none', // just show dot for premium look
     },
-    statsCard: {
-        backgroundColor: "rgba(255,255,255,0.08)",
-        borderRadius: 20,
-        padding: 18,
-        gap: 16,
+
+    // Stats Card Overlay
+    statsCardWrapper: {
+        paddingHorizontal: 20,
+    },
+    statsCardGlass: {
+        borderRadius: 28,
+        padding: 20,
         borderWidth: 1,
-        borderColor: "rgba(255,255,255,0.1)",
+        borderColor: 'rgba(255,255,255,0.15)',
+        position: 'relative',
+        overflow: 'hidden',
+    },
+    glassOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(255,255,255,0.05)',
     },
     levelInfo: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
     },
     levelBadge: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
     },
     levelIconGlow: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: "rgba(245,158,11,0.2)",
-        justifyContent: "center",
-        alignItems: "center",
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: 'rgba(255, 215, 0, 0.15)',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 215, 0, 0.4)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        // Glow effect
         shadowColor: "#F59E0B",
         shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.6,
-        shadowRadius: 8,
-        elevation: 8,
+        shadowOpacity: 0.5,
+        shadowRadius: 10,
+        elevation: 5,
     },
     levelLabel: {
         fontSize: 11,
-        color: "rgba(255,255,255,0.6)",
-        textTransform: "uppercase",
-        letterSpacing: 0.8,
+        fontFamily: 'Inter-Medium',
+        color: 'rgba(255,255,255,0.5)',
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        marginBottom: 2,
     },
     levelTitle: {
-        fontSize: 16,
-        fontWeight: "700",
-        color: "#fff",
+        fontSize: 17,
+        fontFamily: 'Outfit-Bold',
+        color: '#fff',
+        letterSpacing: 0.5,
     },
     mrBadge: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        backgroundColor: "rgba(245,158,11,0.15)",
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        backgroundColor: 'rgba(255,255,255,0.08)',
         paddingHorizontal: 12,
         paddingVertical: 8,
-        borderRadius: 12,
+        borderRadius: 14,
         borderWidth: 1,
-        borderColor: "rgba(245,158,11,0.3)",
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    mrIcon: {
+        backgroundColor: '#F59E0B',
+        padding: 3,
+        borderRadius: 6,
     },
     mrText: {
-        color: "#F59E0B",
-        fontSize: 14,
-        fontWeight: "700",
+        color: '#fff',
+        fontFamily: 'Inter-Bold',
+        fontSize: 13,
+        letterSpacing: 0.5,
     },
     xpContainer: {
         gap: 8,
     },
     xpLabelRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
+        flexDirection: 'row',
+        justifyContent: 'space-between',
     },
     xpLabel: {
         fontSize: 11,
-        color: "rgba(255,255,255,0.5)",
-        textTransform: "uppercase",
-        letterSpacing: 0.5,
+        color: 'rgba(255,255,255,0.5)',
+        fontFamily: 'Inter-Medium',
     },
     xpValue: {
         fontSize: 11,
-        color: "rgba(255,255,255,0.8)",
-        fontWeight: "600",
+        color: 'rgba(255,255,255,0.9)',
+        fontFamily: 'Inter-SemiBold',
     },
-    xpBar: {
+    xpBarBackground: {
         height: 6,
-        backgroundColor: "rgba(255,255,255,0.15)",
+        backgroundColor: 'rgba(255,255,255,0.1)',
         borderRadius: 3,
-        overflow: "hidden",
+        overflow: 'hidden',
     },
-    xpFill: {
-        height: "100%",
-        backgroundColor: "#F59E0B",
+    xpBarFill: {
+        height: '100%',
         borderRadius: 3,
-    },
-    xpFillGradient: {
-        height: "100%",
-        backgroundColor: "#F59E0B",
-        borderRadius: 3,
-        shadowColor: "#F59E0B",
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.5,
-        shadowRadius: 4,
-        elevation: 4,
-    },
-    statRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-around",
-        paddingTop: 14,
-        borderTopWidth: 1,
-        borderTopColor: "rgba(255,255,255,0.1)",
-    },
-    statItem: {
-        alignItems: "center",
-        flex: 1,
-    },
-    statDivider: {
-        width: 1,
-        height: 28,
-        backgroundColor: "rgba(255,255,255,0.15)",
-    },
-    statLabel: {
-        fontSize: 10,
-        color: "rgba(255,255,255,0.5)",
-        marginTop: 4,
-        textTransform: "uppercase",
-        letterSpacing: 0.5,
-    },
-    statValue: {
-        fontSize: 18,
-        fontWeight: "700",
-        color: "#fff",
     },
 
-    challengeCard: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: 16,
-        borderRadius: 16,
-        marginBottom: 24,
-        marginTop: 24,
-        marginHorizontal: 20,
-    },
-    challengeContent: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
-    },
-    challengeTitle: {
-        color: "#fff",
-        fontSize: 14,
-        fontWeight: "bold",
-    },
-    challengeSubtitle: {
-        color: "rgba(255,255,255,0.8)",
-        fontSize: 12,
-    },
-    challengeBtn: {
-        backgroundColor: "#fff",
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 8,
-    },
-    challengeBtnText: {
-        color: Colors.primary,
-        fontSize: 12,
-        fontWeight: "bold",
-    },
+    // Hub Grid
     section: {
-        paddingHorizontal: 20,
-        marginTop: 24,
-    },
-    sectionHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 12,
-    },
-    sectionTitleRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: "bold",
-    },
-    seeAll: {
-        color: Colors.primary,
-        fontSize: 14,
-        fontWeight: "500",
-    },
-    noActiveMatch: {
-        padding: 32,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderStyle: "dashed",
-        alignItems: "center",
-    },
-    noActiveTitle: {
-        fontSize: 16,
-        fontWeight: "600",
-        marginTop: 12,
-    },
-    noActiveDesc: {
-        fontSize: 12,
-        textAlign: "center",
-        marginTop: 4,
+        marginBottom: 24,
     },
     hubGrid: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        justifyContent: "flex-start",
-        rowGap: 20,
-        columnGap: 0,
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 12,
+        justifyContent: 'space-between',
     },
     hubItem: {
-        width: "20%",
-        alignItems: "center",
-        gap: 4,
+        width: '31%',
+        paddingVertical: 16,
+        paddingHorizontal: 8,
+        borderRadius: 20,
+        borderWidth: 1,
+        alignItems: 'center',
+        gap: 10,
     },
-    hubIconCompact: {
-        width: 52,
-        height: 52,
-        justifyContent: "center",
-        alignItems: "center",
+    hubIconCircle: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     hubLabel: {
-        fontSize: 11,
-        fontWeight: "500",
-        textAlign: "center",
-    },
-    liveBanner: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        backgroundColor: Colors.navyDeep,
-        padding: 16,
-        borderRadius: 16,
-        overflow: "hidden",
-    },
-    liveBannerContent: {
-        flex: 1,
-    },
-    liveTag: {
-        backgroundColor: "#EF4444",
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 4,
-        alignSelf: "flex-start",
-        marginBottom: 4,
-    },
-    liveTagText: {
-        color: "#fff",
-        fontSize: 10,
-        fontWeight: "bold",
-    },
-    liveBannerTitle: {
-        color: "#fff",
-        fontSize: 16,
-        fontWeight: "bold",
-    },
-    liveBannerSubtitle: {
-        color: "#93C5FD",
         fontSize: 12,
-        marginTop: 2,
+        fontFamily: 'Inter-SemiBold',
+        textAlign: 'center',
+        letterSpacing: -0.2,
     },
-    watchButton: {
-        backgroundColor: "#fff",
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 12,
-    },
-    watchButtonText: {
-        color: Colors.blueMid,
-        fontSize: 12,
-        fontWeight: "bold",
-    },
-    activityCard: {
-        flexDirection: "row",
-        padding: 16,
-        borderRadius: 16,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: "rgba(0,0,0,0.05)",
-    },
-    activityAvatar: {
-        width: 40,
-        height: 40,
+
+    // Daily Stats
+    dailyStatsCard: {
+        flexDirection: 'row',
+        padding: 20,
         borderRadius: 20,
-        marginRight: 12,
+        borderWidth: 1,
     },
-    activityContent: {
+    dailyStatItem: {
         flex: 1,
+        alignItems: 'center',
+        gap: 6,
     },
-    activityText: {
-        fontSize: 14,
-        lineHeight: 20,
+    dailyStatValue: {
+        fontSize: 20,
+        fontFamily: 'Outfit-Bold',
     },
-    activityName: {
-        fontWeight: "bold",
+    dailyStatLabel: {
+        fontSize: 11,
+        fontFamily: 'Inter-SemiBold',
+        color: Colors.muted,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
     },
-    activityMeta: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        backgroundColor: "rgba(0,0,0,0.03)",
-        padding: 8,
-        borderRadius: 8,
-        marginTop: 8,
+    dailyStatDivider: {
+        width: 1,
+        height: '100%',
+        backgroundColor: 'rgba(0,0,0,0.05)',
     },
-    activityScore: {
-        fontSize: 12,
-        fontFamily: "monospace",
+
+    // Alerts
+    alertCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        borderRadius: 20,
+        marginHorizontal: 20,
+        borderWidth: 1,
+        gap: 12,
     },
-    activityMr: {
-        fontSize: 12,
-        fontWeight: "bold",
-        color: "#10B981",
-    },
-    activityTime: {
-        fontSize: 12,
-        marginTop: 8,
-    },
-    likeButton: {
+    alertIcon: {
         width: 36,
         height: 36,
         borderRadius: 18,
-        backgroundColor: "rgba(0,150,136,0.1)",
-        justifyContent: "center",
-        alignItems: "center",
+        backgroundColor: '#FEE2E2',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    alertTitle: {
+        fontSize: 14,
+        fontFamily: 'Outfit-Bold',
+    },
+    alertDesc: {
+        fontSize: 12,
+        fontFamily: 'Inter-Regular',
     },
 
-    // Tantangan Masuk Styles
-    challengeIncomingHighlight: {
-        flexDirection: "row",
-        alignItems: "center",
-        padding: 14,
-        borderRadius: 14,
-        marginBottom: 10,
-        backgroundColor: "rgba(0,16,100,0.08)",
-        borderWidth: 2,
-        borderColor: Colors.primary,
+    // Section Headers
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        marginBottom: 16,
     },
-    challengeIncoming: {
-        flexDirection: "row",
-        alignItems: "center",
-        padding: 14,
-        borderRadius: 14,
-        marginBottom: 10,
+    sectionTitle: {
+        fontSize: 18,
+        fontFamily: 'Outfit-Bold',
+        letterSpacing: -0.5,
+    },
+    badgeCount: {
+        backgroundColor: '#EF4444',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 10,
+    },
+    badgeCountText: {
+        color: '#fff',
+        fontSize: 10,
+        fontFamily: 'Inter-Bold',
+    },
+    seeAll: {
+        fontSize: 13,
+        fontFamily: 'Inter-SemiBold',
+        color: Colors.primary,
+    },
+
+    // Challenge Card
+    challengeCard: {
+        marginHorizontal: 20,
+        borderRadius: 20,
         borderWidth: 1,
-        borderColor: "rgba(0,0,0,0.05)",
+        padding: 16,
+    },
+    challengeHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        marginBottom: 16,
     },
     challengeAvatar: {
         width: 48,
         height: 48,
         borderRadius: 24,
     },
-    challengeInfo: {
-        flex: 1,
-        marginLeft: 12,
-    },
     challengeName: {
-        fontSize: 15,
-        fontWeight: "600",
+        fontSize: 16,
+        fontFamily: 'Outfit-SemiBold',
     },
     challengeMeta: {
-        flexDirection: "row",
-        alignItems: "center",
-        marginTop: 2,
-    },
-    challengeMr: {
         fontSize: 12,
-        fontWeight: "600",
-    },
-    challengeType: {
-        fontSize: 12,
-        marginLeft: 4,
-    },
-    challengeTime: {
-        fontSize: 11,
+        fontFamily: 'Inter-Regular',
+        color: Colors.muted,
         marginTop: 2,
     },
     challengeActions: {
-        flexDirection: "row",
-        gap: 8,
+        flexDirection: 'row',
+        gap: 12,
     },
-    acceptBtn: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: "#22C55E",
-        justifyContent: "center",
-        alignItems: "center",
+    challengeBtn: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 12,
+        alignItems: 'center',
     },
     declineBtn: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: "rgba(239,68,68,0.1)",
-        justifyContent: "center",
-        alignItems: "center",
-    },
-
-    // Streak & H2H Styles
-    streakH2HContainer: {
-        flexDirection: "row",
-        gap: 12,
-    },
-    streakCardHighlight: {
-        flex: 1,
-        padding: 16,
-        borderRadius: 14,
-        alignItems: "center",
-        backgroundColor: "rgba(245,158,11,0.1)",
-        borderWidth: 2,
-        borderColor: "#F59E0B",
-    },
-    streakCard: {
-        flex: 1,
-        padding: 16,
-        borderRadius: 14,
-        alignItems: "center",
         borderWidth: 1,
-        borderColor: "rgba(0,0,0,0.05)",
+        borderColor: '#E5E7EB',
+        backgroundColor: '#fff',
     },
-    streakHeader: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        marginBottom: 8,
-    },
-    streakTitle: {
-        fontSize: 12,
-        fontWeight: "600",
-    },
-    streakValue: {
-        fontSize: 28,
-        fontWeight: "700",
-    },
-    streakLabel: {
-        fontSize: 10,
-        fontWeight: "700",
-        letterSpacing: 1,
-        marginTop: 4,
-    },
-    h2hCard: {
-        flex: 1,
-        padding: 16,
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: "rgba(0,0,0,0.05)",
-    },
-    h2hTitle: {
-        fontSize: 12,
-        fontWeight: "500",
-        marginBottom: 10,
-    },
-    h2hContent: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
-    },
-    h2hAvatar: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-    },
-    h2hStats: {
-        flex: 1,
-    },
-    h2hName: {
-        fontSize: 14,
-        fontWeight: "600",
-    },
-    h2hRecord: {
-        fontSize: 18,
-        fontWeight: "700",
-        marginTop: 2,
-    },
-
-    // Rank Card Styles
-    rankCard: {
-        flexDirection: "row",
-        alignItems: "center",
-        padding: 16,
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: "rgba(0,0,0,0.05)",
-    },
-    rankPosition: {
-        alignItems: "center",
-        paddingRight: 20,
-    },
-    rankNumber: {
-        fontSize: 28,
-        fontWeight: "700",
-        color: Colors.primary,
-    },
-    rankCity: {
-        fontSize: 11,
-        marginTop: 2,
-    },
-    rankDivider: {
-        height: 40,
-        width: 1,
-        backgroundColor: "#E5E7EB",
-    },
-    rankStats: {
-        flex: 1,
-        flexDirection: "row",
-        justifyContent: "space-around",
-    },
-    rankStatItem: {
-        alignItems: "center",
-        gap: 4,
-    },
-    bookingRequestCard: {
-        width: 200,
-        padding: 12,
-        borderRadius: 16,
-        borderWidth: 1,
-    },
-    bookingRequestVenue: {
-        fontSize: 14,
-        fontWeight: "bold",
-        flex: 1,
-    },
-    rankStatValue: {
-        fontSize: 18,
-        fontWeight: "700",
-    },
-    rankStatLabel: {
-        fontSize: 10,
-        marginTop: 2,
-    },
-
-    // Upcoming Match Styles
-    upcomingCardHighlight: {
-        flexDirection: "row",
-        alignItems: "center",
-        padding: 16,
-        borderRadius: 14,
-        backgroundColor: "rgba(245,158,11,0.08)",
-        borderWidth: 2,
-        borderColor: "#F59E0B",
-    },
-    upcomingCard: {
-        flexDirection: "row",
-        alignItems: "center",
-        padding: 16,
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: "rgba(0,0,0,0.05)",
-    },
-    upcomingTime: {
-        alignItems: "center",
-        paddingRight: 16,
-    },
-    upcomingDay: {
-        fontSize: 11,
-        color: Colors.primary,
-        fontWeight: "600",
-    },
-    upcomingHour: {
-        fontSize: 20,
-        fontWeight: "700",
-        color: Colors.primary,
-    },
-    upcomingDivider: {
-        width: 1,
-        height: 50,
-        backgroundColor: "rgba(0,0,0,0.1)",
-    },
-    upcomingInfo: {
-        flex: 1,
-        paddingLeft: 16,
-    },
-    upcomingPlayers: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-        marginBottom: 6,
-    },
-    upcomingAvatar: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-    },
-    upcomingVs: {
-        fontSize: 11,
-        fontWeight: "500",
-    },
-    upcomingOpponent: {
-        fontSize: 14,
-        fontWeight: "600",
-    },
-    upcomingVenue: {
-        fontSize: 11,
-        marginLeft: 2,
-    },
-    venueLocationRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        marginTop: 2,
-    },
-    upcomingBtn: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: "rgba(0,0,0,0.03)",
-        justifyContent: "center",
-        alignItems: "center",
-    },
-
-    // Venue Card Styles
-    venueScroll: {
-        marginHorizontal: -20,
-        paddingHorizontal: 20,
-    },
-    venueCard: {
-        width: 160,
-        borderRadius: 14,
-        marginRight: 12,
-        overflow: "hidden",
-        borderWidth: 1,
-        borderColor: "rgba(0,0,0,0.05)",
-    },
-    venueImagePlaceholder: {
-        height: 80,
-        backgroundColor: "rgba(0,0,0,0.03)",
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    venueInfo: {
-        padding: 12,
-    },
-    venueName: {
-        fontSize: 14,
-        fontWeight: "600",
-    },
-    venueDistance: {
-        fontSize: 11,
-        marginTop: 2,
-    },
-    venueRating: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 4,
-        marginTop: 6,
-    },
-    venueRatingText: {
-        fontSize: 12,
-        fontWeight: "600",
-    },
-
-    // Club/PTM Styles
-    clubCard: {
-        borderRadius: 12,
-        padding: 12,
-        borderWidth: 1,
-    },
-    clubLogo: {
-        width: 60,
-        height: 60,
-        borderRadius: 8,
-        backgroundColor: "rgba(0,0,0,0.05)",
-    },
-    clubName: {
-        fontSize: 15,
-        fontWeight: "600",
-        marginBottom: 2,
-    },
-    clubCity: {
-        fontSize: 12,
-    },
-    clubStatText: {
-        fontSize: 12,
-        fontWeight: "500",
-    },
-
-    // Chat Styles
-    chatItem: {
-        flexDirection: "row",
-        alignItems: "center",
-        padding: 14,
-        borderRadius: 14,
-        marginBottom: 10,
-        borderWidth: 1,
-        borderColor: "rgba(0,0,0,0.05)",
-    },
-    chatAvatarContainer: {
-        position: "relative",
-    },
-    chatAvatar: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-    },
-    chatUnreadBadge: {
-        position: "absolute",
-        top: 0,
-        right: 0,
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-        backgroundColor: Colors.primary,
-        borderWidth: 2,
-        borderColor: "#fff",
-    },
-    chatContent: {
-        flex: 1,
-        marginLeft: 12,
-    },
-    chatHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-    },
-    chatName: {
-        fontSize: 15,
-        fontWeight: "600",
-    },
-    chatTime: {
-        fontSize: 11,
-    },
-    chatPreview: {
+    declineBtnText: {
+        color: '#6B7280',
+        fontFamily: 'Inter-SemiBold',
         fontSize: 13,
-        marginTop: 2,
     },
-    // Empty state styles
+    acceptBtn: {
+        backgroundColor: Colors.primary,
+        shadowColor: Colors.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 2,
+    },
+    acceptBtnText: {
+        color: '#fff',
+        fontFamily: 'Inter-SemiBold',
+        fontSize: 13,
+    },
+
+    // Empty State
     emptyState: {
-        alignItems: "center",
-        justifyContent: "center",
-        paddingVertical: 32,
-        borderRadius: 16,
-        gap: 8,
+        marginHorizontal: 20,
+        padding: 32,
+        borderRadius: 20,
+        borderWidth: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 16,
+    },
+    emptyIconCircle: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     emptyStateText: {
         fontSize: 14,
-        textAlign: "center",
+        fontFamily: 'Inter-Medium',
+    },
+
+    // Grid 2 (Streak / H2H)
+    grid2: {
+        flexDirection: 'row',
+        gap: 12,
         paddingHorizontal: 20,
     },
-    emptyStateSmall: {
-        alignItems: "center",
-        justifyContent: "center",
+    statBox: {
+        flex: 1,
+        padding: 16,
+        borderRadius: 20,
+        borderWidth: 1,
+        alignItems: 'flex-start',
+        gap: 12,
+        minHeight: 110,
+    },
+    statBoxIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    statBoxValue: {
+        fontSize: 22,
+        fontFamily: 'Outfit-Bold',
+    },
+    statBoxLabel: {
+        fontSize: 11,
+        fontFamily: 'Inter-SemiBold',
+        color: Colors.muted,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+
+    // Club Horizontal List
+    clubList: {
+        paddingHorizontal: 20,
+        gap: 16,
+    },
+    clubCard: {
+        width: 250,
+        padding: 16,
+        borderRadius: 20,
+        borderWidth: 1,
+        flexDirection: 'row',
+        gap: 16,
+        alignItems: 'center',
+    },
+    clubLogo: {
+        width: 56,
+        height: 56,
+        borderRadius: 16,
+    },
+    clubInfo: {
+        flex: 1,
         gap: 4,
     },
-    emptyStateTextSmall: {
-        fontSize: 12,
-        textAlign: "center",
-    },
-    // Challenge Item Card Styles
-    challengeItemCard: {
-        padding: 16,
-        borderRadius: 12,
-        borderWidth: 1,
-    },
-    challengeItemName: {
+    clubName: {
         fontSize: 15,
-        fontWeight: "600",
+        fontFamily: 'Outfit-Bold',
     },
-    challengeItemType: {
+    clubCity: {
         fontSize: 12,
+        fontFamily: 'Inter-Medium',
+        color: Colors.muted,
     },
-    challengeDeclineBtn: {
-        flex: 1,
-        paddingVertical: 10,
-        borderRadius: 8,
-        borderWidth: 1,
-        alignItems: "center",
+    clubStatsRow: {
+        flexDirection: 'row',
+        gap: 12,
+        marginTop: 6,
     },
-    challengeDeclineText: {
-        fontSize: 14,
-        fontWeight: "500",
+    clubStat: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
     },
-    challengeAcceptBtn: {
-        flex: 1,
-        paddingVertical: 10,
-        borderRadius: 8,
-        alignItems: "center",
+    clubStatText: {
+        fontSize: 11,
+        fontFamily: 'Inter-SemiBold',
+        color: Colors.muted,
     },
-    challengeAcceptText: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: "#fff",
-    },
-    matchResultBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 4,
-    },
-    matchResultText: {
-        color: '#fff',
-        fontSize: 10,
-        fontWeight: 'bold',
-    },
+
 });

@@ -303,11 +303,18 @@ const styles = StyleSheet.create({
         paddingTop: 0,
     },
     historyCard: {
-        borderRadius: 16,
+        borderRadius: 20,
         padding: 16,
         marginBottom: 16,
+        // Standard Card Style
+        backgroundColor: '#fff',
         borderWidth: 1,
-        borderColor: "rgba(0,0,0,0.05)",
+        borderColor: 'rgba(0,0,0,0.05)',
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.02,
+        shadowRadius: 8,
+        elevation: 1,
     },
     cardHeader: {
         flexDirection: "row",
