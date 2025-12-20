@@ -8,6 +8,7 @@ import {
     ActivityIndicator,
     RefreshControl,
     Image,
+    Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -15,6 +16,13 @@ import { useRouter, Stack, useLocalSearchParams } from "expo-router";
 import { Colors } from "../../src/lib/constants";
 import { supabase } from "../../src/lib/supabase";
 import { useAuthStore } from "../../src/stores/authStore";
+import {
+    generateRoundRobinMatches,
+    calculateGroupStandings,
+    getQualifiersFromGroups,
+    generateKnockoutFromGroups,
+    Participant as BracketParticipant,
+} from "../../src/lib/bracketGeneration";
 
 interface GroupMember {
     id: string;
@@ -53,6 +61,7 @@ export default function GroupStageScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [isOrganizer, setIsOrganizer] = useState(false);
     const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+    const [generating, setGenerating] = useState(false);
 
     // Colors
     const bgColor = Colors.background;
@@ -157,6 +166,138 @@ export default function GroupStageScreen() {
     const onRefresh = () => {
         setRefreshing(true);
         loadGroups();
+    };
+
+    // Create groups from participants
+    const createGroups = async (numGroups: number = 2) => {
+        if (!tournamentId) return;
+        setGenerating(true);
+
+        try {
+            // Fetch all participants
+            const { data: participants } = await supabase
+                .from("tournament_participants")
+                .select("id, user_id, profiles:user_id (id, name, rating_mr)")
+                .eq("tournament_id", tournamentId)
+                .eq("status", "APPROVED");
+
+            if (!participants || participants.length < numGroups * 2) {
+                Alert.alert("Error", `Minimal ${numGroups * 2} peserta untuk ${numGroups} grup`);
+                return;
+            }
+
+            // Shuffle and distribute to groups
+            const shuffled = [...participants].sort(() => Math.random() - 0.5);
+            const groupSize = Math.ceil(shuffled.length / numGroups);
+
+            for (let i = 0; i < numGroups; i++) {
+                const groupName = `Grup ${String.fromCharCode(65 + i)}`; // Grup A, B, C...
+                const groupMembers = shuffled.slice(i * groupSize, (i + 1) * groupSize);
+
+                // Create group
+                const { data: newGroup, error: groupError } = await (supabase
+                    .from("tournament_groups") as any)
+                    .insert({
+                        tournament_id: tournamentId,
+                        group_name: groupName,
+                        group_order: i + 1,
+                    })
+                    .select()
+                    .single();
+
+                if (groupError) throw groupError;
+
+                // Add members to group
+                for (const member of groupMembers) {
+                    await (supabase.from("tournament_group_members") as any).insert({
+                        group_id: newGroup.id,
+                        participant_id: member.id,
+                    });
+                }
+
+                // Generate round robin matches for this group
+                const groupParticipants: BracketParticipant[] = groupMembers.map((m: any) => ({
+                    id: m.profiles?.id || m.user_id,
+                    name: m.profiles?.name || "Unknown",
+                    rating_mr: m.profiles?.rating_mr || 1000,
+                }));
+
+                const roundRobinMatches = generateRoundRobinMatches(groupParticipants, groupName);
+
+                // Insert round robin matches
+                for (const match of roundRobinMatches) {
+                    await supabase.from("tournament_matches").insert({
+                        tournament_id: tournamentId,
+                        round: match.round,
+                        match_number: match.matchNumber,
+                        player1_id: match.player1?.id || null,
+                        player2_id: match.player2?.id || null,
+                        status: "PENDING",
+                        bracket_side: "WINNERS",
+                    } as any);
+                }
+            }
+
+            Alert.alert("Berhasil", `${numGroups} grup berhasil dibuat dengan pertandingan round robin!`);
+            loadGroups();
+        } catch (error) {
+            console.error("Error creating groups:", error);
+            Alert.alert("Error", "Gagal membuat grup");
+        } finally {
+            setGenerating(false);
+        }
+    };
+
+    // Proceed to knockout stage
+    const proceedToKnockout = async () => {
+        if (!tournamentId || groups.length === 0) return;
+
+        try {
+            // Build standings for knockout generation
+            const groupStandings = groups.map(group => ({
+                groupId: group.id,
+                standings: group.members.map(m => ({
+                    participantId: m.participant_id,
+                    participant: {
+                        id: m.user?.id || m.participant_id,
+                        name: m.user?.name || "Unknown",
+                        rating_mr: m.user?.rating_mr || 1000,
+                    },
+                    matchesPlayed: m.matches_played,
+                    wins: m.matches_won,
+                    losses: m.matches_lost,
+                    draws: m.matches_drawn,
+                    setsWon: m.sets_won,
+                    setsLost: m.sets_lost,
+                    pointsFor: m.points_for,
+                    pointsAgainst: m.points_against,
+                    standingPoints: m.standing_points,
+                })),
+            }));
+
+            // Get qualifiers (top 2 from each group)
+            const qualifiers = getQualifiersFromGroups(groupStandings, 2);
+
+            if (qualifiers.length < 2) {
+                Alert.alert("Error", "Tidak cukup peserta untuk babak knockout");
+                return;
+            }
+
+            Alert.alert(
+                "Konfirmasi",
+                `Lanjutkan ke babak knockout dengan ${qualifiers.length} peserta? (Top 2 dari setiap grup)`,
+                [
+                    { text: "Batal", style: "cancel" },
+                    {
+                        text: "Lanjutkan",
+                        onPress: () => router.push({ pathname: "/tournament/bracket", params: { tournamentId } }),
+                    },
+                ]
+            );
+        } catch (error) {
+            console.error("Error proceeding to knockout:", error);
+            Alert.alert("Error", "Gagal melanjutkan ke knockout");
+        }
     };
 
     // Render standings table
@@ -295,6 +436,17 @@ export default function GroupStageScreen() {
                         </View>
                     ))}
 
+                    {/* Proceed to Knockout Button */}
+                    {groups.length > 0 && isOrganizer && (
+                        <TouchableOpacity
+                            style={[styles.knockoutBtn, { backgroundColor: Colors.primary }]}
+                            onPress={proceedToKnockout}
+                        >
+                            <MaterialIcons name="trending-up" size={20} color="#fff" />
+                            <Text style={styles.knockoutBtnText}>Lanjut ke Babak Knockout</Text>
+                        </TouchableOpacity>
+                    )}
+
                     {groups.length === 0 && (
                         <View style={styles.emptyState}>
                             <MaterialIcons name="group-work" size={64} color={mutedColor} />
@@ -305,10 +457,17 @@ export default function GroupStageScreen() {
                             {isOrganizer && (
                                 <TouchableOpacity
                                     style={[styles.createBtn, { backgroundColor: Colors.primary }]}
-                                    onPress={() => {/* TODO: Generate groups */ }}
+                                    onPress={() => createGroups(2)}
+                                    disabled={generating}
                                 >
-                                    <MaterialIcons name="add" size={20} color="#fff" />
-                                    <Text style={styles.createBtnText}>Buat Fase Grup</Text>
+                                    {generating ? (
+                                        <ActivityIndicator size="small" color="#fff" />
+                                    ) : (
+                                        <>
+                                            <MaterialIcons name="add" size={20} color="#fff" />
+                                            <Text style={styles.createBtnText}>Buat 2 Grup (Round Robin)</Text>
+                                        </>
+                                    )}
                                 </TouchableOpacity>
                             )}
                         </View>
@@ -381,4 +540,15 @@ const styles = StyleSheet.create({
         marginTop: 20,
     },
     createBtnText: { color: "#fff", fontSize: 14, fontWeight: "600" },
+    knockoutBtn: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        paddingVertical: 14,
+        paddingHorizontal: 24,
+        borderRadius: 10,
+        marginTop: 20,
+    },
+    knockoutBtnText: { color: "#fff", fontSize: 15, fontWeight: "600" },
 });

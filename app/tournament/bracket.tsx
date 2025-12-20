@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
     View,
     Text,
@@ -12,6 +12,8 @@ import {
     Image,
     Modal,
     Platform,
+    Animated,
+    Easing,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -20,6 +22,13 @@ import { Colors } from "../../src/lib/constants";
 import { supabase } from "../../src/lib/supabase";
 import { useAuthStore } from "../../src/stores/authStore";
 import { useTournamentStore } from "../../src/stores/tournamentStore";
+import {
+    generateSingleElimBracket,
+    generateDoubleElimBracket,
+    generateRoundRobinMatches,
+    BracketMatch as GeneratedBracketMatch,
+    Participant as GeneratedParticipant,
+} from "../../src/lib/bracketGeneration";
 
 type BracketFormat = "SINGLE_ELIM" | "DOUBLE_ELIM";
 
@@ -79,6 +88,33 @@ export default function BracketGeneratorScreen() {
     const [editRefereeId, setEditRefereeId] = useState("");
     const [referees, setReferees] = useState<Participant[]>([]);
     const [updatingMatch, setUpdatingMatch] = useState(false);
+
+    // Double elim bracket tab
+    const [bracketTab, setBracketTab] = useState<'winners' | 'losers' | 'grand'>('winners');
+
+    // Live match pulse animation
+    const pulseAnim = useRef(new Animated.Value(1)).current;
+
+    useEffect(() => {
+        const pulseAnimation = Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulseAnim, {
+                    toValue: 0.4,
+                    duration: 800,
+                    easing: Easing.inOut(Easing.ease),
+                    useNativeDriver: true,
+                }),
+                Animated.timing(pulseAnim, {
+                    toValue: 1,
+                    duration: 800,
+                    easing: Easing.inOut(Easing.ease),
+                    useNativeDriver: true,
+                }),
+            ])
+        );
+        pulseAnimation.start();
+        return () => pulseAnimation.stop();
+    }, []);
 
     // Colors
     const bgColor = Colors.background;
@@ -538,6 +574,12 @@ export default function BracketGeneratorScreen() {
                                                 <Text style={styles.byeText}>BYE</Text>
                                             </View>
                                         )}
+                                        {/* LIVE Indicator - show when match is in progress (players set, no winner yet) */}
+                                        {!match.isBye && match.player1 && match.player2 && !match.winner && (match.score1 > 0 || match.score2 > 0) && (
+                                            <Animated.View style={[styles.liveBadge, { opacity: pulseAnim }]}>
+                                                <Text style={styles.liveText}>● LIVE</Text>
+                                            </Animated.View>
+                                        )}
                                     </TouchableOpacity>
                                 ))}
                             </View>
@@ -893,4 +935,14 @@ const styles = StyleSheet.create({
     modalActions: { flexDirection: "row", gap: 12, marginTop: 24, marginBottom: 20 },
     actionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", padding: 14, borderRadius: 12, gap: 8 },
     actionBtnText: { color: "#fff", fontSize: 15, fontWeight: "600" },
+    // LIVE indicator
+    liveBadge: { position: "absolute", top: 2, left: 2, backgroundColor: "#EF4444", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, flexDirection: "row", alignItems: "center" },
+    liveText: { color: "#fff", fontSize: 8, fontWeight: "bold" },
+    // Bracket tabs for double elimination
+    bracketTabs: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 8, gap: 8, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
+    bracketTabBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
+    bracketTabText: { fontSize: 13, fontWeight: "600" },
+    losersBracketLabel: { fontSize: 12, fontWeight: "600", color: "#EF4444", textAlign: "center", marginBottom: 8, marginTop: 16 },
+    grandFinalCard: { margin: 16, padding: 16, borderRadius: 12, borderWidth: 2, borderColor: "#F59E0B" },
+    grandFinalTitle: { fontSize: 16, fontWeight: "bold", textAlign: "center", marginBottom: 12, color: "#F59E0B" },
 });
