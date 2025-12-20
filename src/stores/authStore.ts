@@ -175,10 +175,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                     const refreshToken = url.searchParams.get('refresh_token');
 
                     if (accessToken && refreshToken) {
-                        await supabase.auth.setSession({
+                        const { data: sessionData } = await supabase.auth.setSession({
                             access_token: accessToken,
                             refresh_token: refreshToken,
                         });
+
+                        // Fetch profile immediately after setting session
+                        if (sessionData?.user) {
+                            set({ user: sessionData.user, session: sessionData.session });
+
+                            // Fetch profile from database
+                            const { data: profileData } = await supabase
+                                .from("profiles")
+                                .select("*")
+                                .eq("id", sessionData.user.id)
+                                .single();
+
+                            if (profileData) {
+                                set({ profile: profileData as Profile });
+                                console.log("Profile loaded after Google login:", (profileData as Profile).name);
+                            }
+                        }
                     }
                 }
             }
