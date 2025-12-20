@@ -6,24 +6,23 @@ import {
     TouchableOpacity,
     Image,
     StyleSheet,
-    useColorScheme,
     RefreshControl,
     Platform,
     Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, Stack } from "expo-router";
 import Slider from "@react-native-community/slider";
 import * as Location from "expo-location";
-import { Colors, GripStyles, PlayStyles, SharedStyles, ExtendedColors, BorderRadius } from "@/lib/constants";
-import { supabase } from "@/lib/supabase";
-import { Profile } from "@/types/database";
-import { useAuthStore } from "@/stores/authStore";
-import { MapComponent } from "@/components/MapComponent";
+import { Colors, GripStyles, PlayStyles, ExtendedColors, BorderRadius } from "../src/lib/constants";
+import { supabase } from "../src/lib/supabase";
+import { Profile } from "../src/types/database";
+import { useAuthStore } from "../src/stores/authStore";
+import { MapComponent } from "../src/components/MapComponent";
 import { LinearGradient } from 'expo-linear-gradient';
 
-// Real Map View wrapper - uses platform-specific MapComponent
+// Real Map View wrapper
 const RealMapView = ({
     userLocation,
     players,
@@ -44,13 +43,12 @@ const RealMapView = ({
                 onPlayerPress={onPlayerPress}
                 showPlayersMode={true}
             />
-            {/* Overlay Gradient for "Radar" effect style (optional, kept simple for now) */}
             <View style={styles.mapOverlay} pointerEvents="none" />
         </View>
     );
 };
 
-// Player card component - Refined
+// Player card component
 const PlayerCard = ({
     player,
     distance,
@@ -62,7 +60,6 @@ const PlayerCard = ({
     onInvite: () => void;
     onProfile: () => void;
 }) => {
-
     const getStatusColor = () => {
         if (player.is_online) return "#10B981";
         return "#9CA3AF";
@@ -76,7 +73,6 @@ const PlayerCard = ({
                         source={{ uri: player.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name || "User")}&background=random` }}
                         style={styles.playerImage}
                     />
-                    {/* MR Badge Floating */}
                     <View style={styles.mrBadge}>
                         <Text style={styles.mrBadgeText}>{player.rating_mr}</Text>
                     </View>
@@ -99,24 +95,19 @@ const PlayerCard = ({
                     <View style={styles.styleTags}>
                         {player.play_style && (
                             <View style={styles.styleTag}>
-                                <Text style={styles.styleTagText}>
-                                    {PlayStyles[player.play_style as keyof typeof PlayStyles]}
-                                </Text>
+                                <Text style={styles.styleTagText}>{player.play_style}</Text>
                             </View>
                         )}
-
+                        {player.grip_style && (
+                            <View style={styles.styleTag}>
+                                <Text style={styles.styleTagText}>{player.grip_style}</Text>
+                            </View>
+                        )}
                     </View>
                 </View>
             </View>
 
             <View style={styles.playerActions}>
-                <TouchableOpacity
-                    style={styles.profileBtn}
-                    onPress={onProfile}
-                >
-                    <Text style={styles.profileBtnText}>Lihat Profil</Text>
-                </TouchableOpacity>
-
                 {player.is_online ? (
                     <TouchableOpacity style={styles.inviteBtn} onPress={onInvite}>
                         <Text style={styles.inviteBtnText}>Undang Main</Text>
@@ -132,7 +123,7 @@ const PlayerCard = ({
     );
 };
 
-export default function CariScreen() {
+export default function SearchScreen() {
     const router = useRouter();
     const { profile } = useAuthStore();
 
@@ -142,25 +133,6 @@ export default function CariScreen() {
     const [isLoading, setIsLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-
-    // Entrance animation
-    const fadeAnim = useRef(new Animated.Value(0)).current;
-    const slideAnim = useRef(new Animated.Value(30)).current;
-
-    useEffect(() => {
-        Animated.parallel([
-            Animated.timing(fadeAnim, {
-                toValue: 1,
-                duration: 400,
-                useNativeDriver: true,
-            }),
-            Animated.timing(slideAnim, {
-                toValue: 0,
-                duration: 400,
-                useNativeDriver: true,
-            }),
-        ]).start();
-    }, []);
 
     // Auto-select skill level based on user's MR rating
     useEffect(() => {
@@ -191,7 +163,6 @@ export default function CariScreen() {
                 longitude: location.coords.longitude,
             });
         })();
-
     }, []);
 
     const fetchPlayers = async () => {
@@ -220,7 +191,7 @@ export default function CariScreen() {
             const { data, error } = await supabase
                 .from("profiles")
                 .select("*")
-                .neq("id", profile.id) // Exclude current user
+                .neq("id", profile.id)
                 .gte("rating_mr", minMR)
                 .lte("rating_mr", maxMR)
                 .limit(20);
@@ -242,15 +213,14 @@ export default function CariScreen() {
         }
     };
 
-    // Fetch players from Supabase based on skill level
     useEffect(() => {
         fetchPlayers();
-    }, [skillLevel, profile?.id]);
+    }, [profile?.id, skillLevel]);
 
-    const onRefresh = React.useCallback(() => {
+    const onRefresh = () => {
         setRefreshing(true);
         fetchPlayers();
-    }, [skillLevel, profile?.id]);
+    };
 
     const getSkillRange = () => {
         switch (skillLevel) {
@@ -261,6 +231,10 @@ export default function CariScreen() {
             case "pro":
                 return "1600+";
         }
+    };
+
+    const getRandomDistance = () => {
+        return Math.random() * distance;
     };
 
     const handleInvite = (playerId: string) => {
@@ -277,34 +251,40 @@ export default function CariScreen() {
         });
     };
 
-    // Premium Colors
-    const bgColor = '#FFFFFF'; // Soft Slate
+    const bgColor = '#FFFFFF';
     const cardColor = '#FFFFFF';
     const textColor = Colors.secondary;
+    const mutedColor = Colors.muted;
 
     return (
-        <View style={[styles.container, { backgroundColor: bgColor }]}>
-            {/* Header with LinearGradient */}
-            <LinearGradient
-                colors={[Colors.secondary, '#000830']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.headerGradient}
-            >
-                <SafeAreaView edges={['top']}>
-                    <View style={styles.header}>
-                        <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
-                            <MaterialIcons name="arrow-back" size={24} color="#fff" />
-                        </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Cari Lawan</Text>
-                        <TouchableOpacity style={[styles.headerBtn, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
-                            <MaterialIcons name="tune" size={22} color="#fff" />
-                        </TouchableOpacity>
-                    </View>
-                </SafeAreaView>
-            </LinearGradient>
+        <>
+            <Stack.Screen
+                options={{
+                    headerShown: false,
+                    animation: 'slide_from_right',
+                }}
+            />
+            <View style={[styles.container, { backgroundColor: bgColor }]}>
+                {/* Header */}
+                <LinearGradient
+                    colors={[Colors.secondary, '#000830']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.headerGradient}
+                >
+                    <SafeAreaView edges={['top']}>
+                        <View style={styles.header}>
+                            <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
+                                <MaterialIcons name="arrow-back" size={24} color="#fff" />
+                            </TouchableOpacity>
+                            <Text style={styles.headerTitle}>Cari Lawan</Text>
+                            <TouchableOpacity style={[styles.headerBtn, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
+                                <MaterialIcons name="tune" size={22} color="#fff" />
+                            </TouchableOpacity>
+                        </View>
+                    </SafeAreaView>
+                </LinearGradient>
 
-            <Animated.View style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
                 <ScrollView
                     style={styles.scrollView}
                     contentContainerStyle={styles.content}
@@ -313,85 +293,80 @@ export default function CariScreen() {
                         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
                     }
                 >
-                    {/* Map Section - Floating Card */}
-                    <View style={[styles.radarSection, { backgroundColor: cardColor }]}>
+                    {/* Radar Section */}
+                    <View style={styles.radarSection}>
                         <RealMapView
                             userLocation={userLocation}
                             players={players}
                             distance={distance}
                             onPlayerPress={handleProfile}
                         />
-
-                        {/* Filters */}
-                        <View style={styles.filters}>
-                            {/* Distance Slider */}
-                            <View style={styles.filterItem}>
-                                <View style={styles.filterHeader}>
-                                    <Text style={styles.filterLabel}>Jarak Maksimal</Text>
-                                    <View style={styles.filterValueBadge}>
-                                        <Text style={styles.filterValueText}>{distance} km</Text>
-                                    </View>
-                                </View>
-                                <Slider
-                                    style={styles.slider}
-                                    minimumValue={1}
-                                    maximumValue={50}
-                                    value={distance}
-                                    onValueChange={setDistance}
-                                    minimumTrackTintColor={Colors.primary}
-                                    maximumTrackTintColor={'#E2E8F0'}
-                                    thumbTintColor={Colors.primary}
-                                />
-                            </View>
-
-                            {/* Skill Range */}
-                            <View style={styles.filterItem}>
-                                <View style={styles.filterHeader}>
-                                    <Text style={styles.filterLabel}>Rating (MR)</Text>
-                                    <View style={[styles.filterValueBadge, { backgroundColor: '#EEF2FF' }]}>
-                                        <Text style={[styles.filterValueText, { color: '#4F46E5' }]}>{getSkillRange()}</Text>
-                                    </View>
-                                </View>
-                                <View style={styles.skillButtons}>
-                                    {(["beginner", "intermediate", "pro"] as const).map((level) => (
-                                        <TouchableOpacity
-                                            key={level}
-                                            style={[
-                                                styles.skillBtn,
-                                                skillLevel === level && styles.skillBtnActive
-                                            ]}
-                                            onPress={() => setSkillLevel(level)}
-                                        >
-                                            <Text
-                                                style={[
-                                                    styles.skillBtnText,
-                                                    skillLevel === level && styles.skillBtnTextActive
-                                                ]}
-                                            >
-                                                {level === "beginner" ? "Pemula" : level === "intermediate" ? "Menengah" : "Pro"}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-                            </View>
-                        </View>
                     </View>
 
-                    {/* Results */}
-                    <View style={styles.results}>
-                        <View style={styles.resultsHeader}>
-                            <Text style={styles.resultsTitle}>Ditemukan</Text>
-                            <View style={styles.resultsBadge}>
-                                <Text style={styles.resultsBadgeText}>{players.length} Pemain</Text>
-                            </View>
+                    {/* Distance Slider */}
+                    <View style={[styles.filterCard, { backgroundColor: cardColor }]}>
+                        <View style={styles.filterHeader}>
+                            <Text style={[styles.filterLabel, { color: textColor }]}>Jarak Pencarian</Text>
+                            <Text style={[styles.filterValue, { color: Colors.primary }]}>{distance} km</Text>
+                        </View>
+                        <Slider
+                            style={styles.slider}
+                            minimumValue={1}
+                            maximumValue={50}
+                            value={distance}
+                            onValueChange={(val) => setDistance(Math.round(val))}
+                            minimumTrackTintColor={Colors.primary}
+                            maximumTrackTintColor="#E5E7EB"
+                            thumbTintColor={Colors.primary}
+                        />
+                    </View>
+
+                    {/* Skill Level Tabs */}
+                    <View style={styles.skillTabs}>
+                        {[
+                            { key: "beginner", label: "Pemula", range: "800-1200" },
+                            { key: "intermediate", label: "Menengah", range: "1200-1600" },
+                            { key: "pro", label: "Pro", range: "1600+" },
+                        ].map((tab) => (
+                            <TouchableOpacity
+                                key={tab.key}
+                                style={[
+                                    styles.skillTab,
+                                    skillLevel === tab.key && styles.skillTabActive,
+                                ]}
+                                onPress={() => setSkillLevel(tab.key as any)}
+                            >
+                                <Text style={[
+                                    styles.skillTabLabel,
+                                    skillLevel === tab.key && styles.skillTabLabelActive
+                                ]}>
+                                    {tab.label}
+                                </Text>
+                                <Text style={[
+                                    styles.skillTabRange,
+                                    skillLevel === tab.key && styles.skillTabRangeActive
+                                ]}>
+                                    MR {tab.range}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+
+                    {/* Players List */}
+                    <View style={styles.playersSection}>
+                        <View style={styles.sectionHeader}>
+                            <Text style={[styles.sectionTitle, { color: textColor }]}>
+                                Pemain Terdekat
+                            </Text>
+                            <Text style={styles.playerCount}>{players.length} ditemukan</Text>
                         </View>
 
                         {players.length > 0 ? (
-                            players.map((player, index) => (
+                            players.map((player) => (
                                 <PlayerCard
                                     key={player.id}
                                     player={player}
-                                    distance={2.4 + index * 1.7} // Placeholder distance
+                                    distance={getRandomDistance()}
                                     onInvite={() => handleInvite(player.id!)}
                                     onProfile={() => handleProfile(player.id!)}
                                 />
@@ -406,11 +381,10 @@ export default function CariScreen() {
                         )}
                     </View>
 
-                    {/* Bottom padding */}
                     <View style={{ height: 100 }} />
                 </ScrollView>
-            </Animated.View>
-        </View>
+            </View>
+        </>
     );
 }
 
@@ -434,14 +408,13 @@ const styles = StyleSheet.create({
     },
     headerTitle: {
         fontSize: 20,
-        fontFamily: 'Outfit-Bold',
+        fontWeight: "bold",
         color: "#fff",
     },
     headerBtn: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: 'rgba(255,255,255,0.1)',
         justifyContent: "center",
         alignItems: "center",
     },
@@ -449,14 +422,15 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     content: {
-        paddingBottom: 20,
+        paddingHorizontal: 20,
     },
     radarSection: {
-        marginHorizontal: 20,
-        marginTop: 10,
-        borderRadius: 24,
-        padding: 16,
-        // Soft Shadow
+        marginBottom: 16,
+        borderRadius: 20,
+        overflow: "hidden",
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.05)',
+        backgroundColor: '#fff',
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.02,
@@ -464,138 +438,119 @@ const styles = StyleSheet.create({
         elevation: 1,
     },
     radarContainer: {
-        height: 180,
-        borderRadius: 16,
+        height: 200,
+        borderRadius: 20,
         overflow: "hidden",
-        marginBottom: 20,
-        backgroundColor: '#F1F5F9',
-        borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.05)',
     },
     mapOverlay: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.02)',
+        borderRadius: 20,
     },
-
-    // Filters
-    filters: {
-        gap: 20,
-    },
-    filterItem: {
-        gap: 8,
+    filterCard: {
+        padding: 16,
+        borderRadius: 16,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: "rgba(0,0,0,0.05)",
     },
     filterHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
+        marginBottom: 8,
     },
     filterLabel: {
         fontSize: 14,
-        fontFamily: 'Outfit-SemiBold',
-        color: Colors.secondary,
+        fontWeight: "600",
     },
-    filterValueBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 6,
-        backgroundColor: '#F0FDF4',
-    },
-    filterValueText: {
-        fontSize: 12,
-        fontFamily: 'Inter-Bold',
-        color: '#15803D',
+    filterValue: {
+        fontSize: 16,
+        fontWeight: "bold",
     },
     slider: {
         width: "100%",
         height: 40,
     },
-    skillButtons: {
+    skillTabs: {
         flexDirection: "row",
         gap: 8,
+        marginBottom: 20,
     },
-    skillBtn: {
+    skillTab: {
         flex: 1,
-        paddingVertical: 10,
+        paddingVertical: 12,
+        paddingHorizontal: 8,
         borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
+        backgroundColor: "#F3F4F6",
         alignItems: "center",
-        backgroundColor: '#F8FAFC',
     },
-    skillBtnActive: {
-        borderColor: Colors.primary,
-        backgroundColor: 'rgba(13, 148, 136, 0.1)',
+    skillTabActive: {
+        backgroundColor: Colors.primary,
     },
-    skillBtnText: {
-        fontSize: 12,
-        fontFamily: 'Inter-Medium',
+    skillTabLabel: {
+        fontSize: 13,
+        fontWeight: "600",
         color: Colors.muted,
     },
-    skillBtnTextActive: {
-        color: Colors.primary,
-        fontFamily: 'Inter-SemiBold',
-    },
-
-    // Results
-    results: {
-        paddingHorizontal: 20,
-        marginTop: 24,
-    },
-    resultsHeader: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-        marginBottom: 16,
-    },
-    resultsTitle: {
-        fontSize: 18,
-        fontFamily: 'Outfit-Bold',
-        color: Colors.secondary,
-    },
-    resultsBadge: {
-        backgroundColor: Colors.secondary,
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 12,
-    },
-    resultsBadgeText: {
+    skillTabLabelActive: {
         color: "#fff",
-        fontSize: 10,
-        fontFamily: 'Inter-Bold',
     },
-
-    // Player Card
+    skillTabRange: {
+        fontSize: 10,
+        color: Colors.muted,
+        marginTop: 2,
+    },
+    skillTabRangeActive: {
+        color: "rgba(255,255,255,0.8)",
+    },
+    playersSection: {
+        marginBottom: 20,
+    },
+    sectionHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 12,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: "bold",
+    },
+    playerCount: {
+        fontSize: 12,
+        color: Colors.muted,
+    },
     playerCard: {
-        backgroundColor: '#fff',
+        backgroundColor: "#fff",
         borderRadius: 20,
         padding: 16,
-        marginBottom: 16,
-        // Card Shadow
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: "rgba(0,0,0,0.05)",
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.02,
         shadowRadius: 8,
         elevation: 1,
-        borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.03)',
     },
     playerInfo: {
         flexDirection: "row",
-        gap: 16,
+        marginBottom: 12,
     },
     playerAvatar: {
         position: "relative",
+        marginRight: 12,
     },
     playerImage: {
-        width: 60,
-        height: 60,
-        borderRadius: 20,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
     },
     mrBadge: {
         position: "absolute",
-        bottom: -6,
-        right: -6,
-        backgroundColor: '#F59E0B',
+        bottom: -4,
+        right: -4,
+        backgroundColor: Colors.primary,
         paddingHorizontal: 6,
         paddingVertical: 2,
         borderRadius: 8,
@@ -603,13 +558,12 @@ const styles = StyleSheet.create({
         borderColor: "#fff",
     },
     mrBadgeText: {
+        color: "#fff",
         fontSize: 10,
-        fontFamily: 'Inter-Bold',
-        color: '#fff',
+        fontWeight: "bold",
     },
     playerDetails: {
         flex: 1,
-        justifyContent: 'center',
     },
     playerHeader: {
         flexDirection: "row",
@@ -618,19 +572,18 @@ const styles = StyleSheet.create({
     },
     playerName: {
         fontSize: 16,
-        fontFamily: 'Outfit-Bold',
+        fontWeight: "bold",
         color: Colors.secondary,
     },
     locationRow: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 4,
         marginTop: 2,
     },
     locationText: {
-        fontSize: 11,
-        fontFamily: 'Inter-Regular',
+        fontSize: 12,
         color: Colors.muted,
+        marginLeft: 2,
     },
     statusDot: {
         width: 8,
@@ -639,89 +592,58 @@ const styles = StyleSheet.create({
     },
     styleTags: {
         flexDirection: "row",
+        flexWrap: "wrap",
         gap: 6,
         marginTop: 8,
     },
     styleTag: {
-        backgroundColor: '#F1F5F9',
+        backgroundColor: "#F3F4F6",
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 6,
     },
     styleTagText: {
-        fontSize: 10,
-        fontFamily: 'Inter-Medium',
-        color: Colors.secondary,
-    },
-
-    // Player Actions
-    playerActions: {
-        flexDirection: "row",
-        gap: 12,
-        marginTop: 16,
-        paddingTop: 16,
-        borderTopWidth: 1,
-        borderTopColor: 'rgba(0,0,0,0.05)',
-    },
-    profileBtn: {
-        flex: 1,
-        paddingVertical: 10,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-        alignItems: "center",
-    },
-    profileBtnText: {
-        fontSize: 13,
-        fontFamily: 'Inter-Medium',
+        fontSize: 11,
         color: Colors.muted,
     },
+    playerActions: {
+        flexDirection: "row",
+        justifyContent: "flex-end",
+    },
     inviteBtn: {
-        flex: 1,
         backgroundColor: Colors.primary,
-        paddingVertical: 10,
-        borderRadius: 12,
-        alignItems: "center",
-        shadowColor: Colors.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
     },
     inviteBtnText: {
         color: "#fff",
         fontSize: 13,
-        fontFamily: 'Inter-SemiBold',
+        fontWeight: "600",
     },
     notifyBtn: {
-        flex: 1,
-        flexDirection: 'row',
-        gap: 6,
-        backgroundColor: '#F8FAFC',
-        paddingVertical: 10,
-        borderRadius: 12,
+        flexDirection: "row",
         alignItems: "center",
-        justifyContent: 'center',
+        gap: 4,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: Colors.muted,
     },
     notifyBtnText: {
         color: Colors.muted,
         fontSize: 13,
-        fontFamily: 'Inter-Medium',
     },
-
     emptyState: {
-        alignItems: "center",
-        justifyContent: "center",
-        paddingVertical: 40,
+        padding: 40,
         borderRadius: 16,
-        gap: 12,
-        borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.05)',
+        alignItems: "center",
     },
     emptyStateText: {
+        marginTop: 12,
         fontSize: 14,
-        fontFamily: 'Inter-Regular',
-        textAlign: "center",
-        paddingHorizontal: 20,
         color: Colors.muted,
+        textAlign: "center",
     },
 });

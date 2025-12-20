@@ -289,7 +289,7 @@ export default function HomeScreen() {
                 <View style={[styles.section, { paddingHorizontal: 20 }]}>
                     <View style={styles.hubGrid}>
                         {[
-                            { icon: "search", label: "Cari Lawan", route: "/cari", color: "#EF4444" },
+                            { icon: "search", label: "Cari Lawan", route: "/search", color: "#EF4444" },
                             { icon: "groups", label: "Klub PTM", route: "/club", color: "#8B5CF6" },
                             { icon: "leaderboard", label: "Ranking", route: "/leaderboard", color: "#F59E0B" },
                             { icon: "flash-on", label: "Quick Match", route: "/match/quick", color: "#F59E0B" },
@@ -301,6 +301,7 @@ export default function HomeScreen() {
                                 key={index}
                                 style={[styles.hubItem, { backgroundColor: cardColor, borderColor }, shadowStyle]}
                                 onPress={() => router.push(item.route as any)}
+                                activeOpacity={0.7}
                             >
                                 <View style={[styles.hubIconCircle, { backgroundColor: item.color + '10' }]}>
                                     <MaterialIcons name={item.icon as any} size={26} color={item.color} />

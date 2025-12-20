@@ -205,23 +205,27 @@ export default function MatchScoringScreen() {
                         </Text>
 
                         <View style={styles.scoreContainer}>
-                            <TouchableOpacity
-                                style={styles.scoreBtn}
-                                onPress={() => handleScoreChange(1, -1)}
-                            >
-                                <MaterialIcons name="remove" size={24} color={Colors.primary} />
+                            <TouchableOpacity onPress={() => handleScoreChange(1, 1)}>
+                                <Text style={[styles.scoreNumber, { color: Colors.primary }]}>
+                                    {player1Score}
+                                </Text>
                             </TouchableOpacity>
 
-                            <Text style={[styles.scoreNumber, { color: Colors.primary }]}>
-                                {player1Score}
-                            </Text>
+                            <View style={styles.scoreBtnRow}>
+                                <TouchableOpacity
+                                    style={styles.scoreBtn}
+                                    onPress={() => handleScoreChange(1, -1)}
+                                >
+                                    <MaterialIcons name="remove" size={24} color={Colors.primary} />
+                                </TouchableOpacity>
 
-                            <TouchableOpacity
-                                style={[styles.scoreBtn, styles.scoreBtnAdd]}
-                                onPress={() => handleScoreChange(1, 1)}
-                            >
-                                <MaterialIcons name="add" size={24} color="#fff" />
-                            </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.scoreBtn, styles.scoreBtnAdd]}
+                                    onPress={() => handleScoreChange(1, 1)}
+                                >
+                                    <MaterialIcons name="add" size={24} color="#fff" />
+                                </TouchableOpacity>
+                            </View>
                         </View>
                     </View>
 
@@ -244,23 +248,27 @@ export default function MatchScoringScreen() {
                         </Text>
 
                         <View style={styles.scoreContainer}>
-                            <TouchableOpacity
-                                style={styles.scoreBtn}
-                                onPress={() => handleScoreChange(2, -1)}
-                            >
-                                <MaterialIcons name="remove" size={24} color={Colors.secondary} />
+                            <TouchableOpacity onPress={() => handleScoreChange(2, 1)}>
+                                <Text style={[styles.scoreNumber, { color: Colors.secondary }]}>
+                                    {player2Score}
+                                </Text>
                             </TouchableOpacity>
 
-                            <Text style={[styles.scoreNumber, { color: Colors.secondary }]}>
-                                {player2Score}
-                            </Text>
+                            <View style={styles.scoreBtnRow}>
+                                <TouchableOpacity
+                                    style={styles.scoreBtn}
+                                    onPress={() => handleScoreChange(2, -1)}
+                                >
+                                    <MaterialIcons name="remove" size={24} color={Colors.secondary} />
+                                </TouchableOpacity>
 
-                            <TouchableOpacity
-                                style={[styles.scoreBtn, styles.scoreBtnAdd, { backgroundColor: Colors.secondary }]}
-                                onPress={() => handleScoreChange(2, 1)}
-                            >
-                                <MaterialIcons name="add" size={24} color="#fff" />
-                            </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.scoreBtn, styles.scoreBtnAdd, { backgroundColor: Colors.secondary }]}
+                                    onPress={() => handleScoreChange(2, 1)}
+                                >
+                                    <MaterialIcons name="add" size={24} color="#fff" />
+                                </TouchableOpacity>
+                            </View>
                         </View>
                     </View>
                 </View>
@@ -371,9 +379,13 @@ const styles = StyleSheet.create({
         marginBottom: 16,
     },
     scoreContainer: {
+        alignItems: "center",
+        gap: 8,
+    },
+    scoreBtnRow: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 12,
+        gap: 16,
     },
     scoreBtn: {
         width: 44,
@@ -387,9 +399,9 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.primary,
     },
     scoreNumber: {
-        fontSize: 48,
+        fontSize: 80,
         fontWeight: "bold",
-        minWidth: 60,
+        minWidth: 100,
         textAlign: "center",
     },
     vsDivider: {

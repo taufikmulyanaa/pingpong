@@ -13,6 +13,7 @@ import {
     ScrollView,
     Modal,
     TextInput,
+    Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -508,41 +509,49 @@ export default function ScanQRScreen() {
                                 </TouchableOpacity>
                             </View>
 
-                            {/* Players & Scores */}
+                            {/* Players & Scores - Premium Design */}
                             <View style={styles.scorerBody}>
                                 {/* Player 1 (Me) */}
                                 <View style={styles.playerColumn}>
-                                    <Text style={[styles.playerNameLarge, { color: textColor }]}>{profile?.name || "Anda"}</Text>
-                                    <TouchableOpacity style={[styles.scoreBigBox, { borderColor: activeSetWinner === 'me' ? Colors.success : Colors.border }]} onPress={() => handlePointChange('me', 1)}>
-                                        <Text style={[styles.scoreBigText, { color: textColor }]}>{currentPointMe}</Text>
-                                    </TouchableOpacity>
-                                    <View style={styles.scoreControls}>
-                                        <TouchableOpacity style={[styles.controlBtn, { borderColor: Colors.muted }]} onPress={() => handlePointChange('me', -1)}>
-                                            <MaterialIcons name="remove" size={24} color={Colors.text} />
+                                    <Image
+                                        source={{ uri: profile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.name || "Me")}&background=009688&color=fff` }}
+                                        style={styles.scorerAvatar}
+                                    />
+                                    <Text style={[styles.playerNameLarge, { color: textColor }]} numberOfLines={1}>{profile?.name || "Anda"}</Text>
+                                    <Text style={[styles.playerMrText, { color: mutedColor }]}>MR {profile?.rating_mr || 1000}</Text>
+
+                                    <View style={styles.scoreControlsRow}>
+                                        <TouchableOpacity style={[styles.controlBtnRound, { backgroundColor: 'rgba(0,0,0,0.05)' }]} onPress={() => handlePointChange('me', -1)}>
+                                            <MaterialIcons name="remove" size={24} color={Colors.primary} />
                                         </TouchableOpacity>
-                                        <TouchableOpacity style={[styles.controlBtn, { borderColor: Colors.muted }]} onPress={() => handlePointChange('me', 1)}>
-                                            <MaterialIcons name="add" size={24} color={Colors.primary} />
+                                        <Text style={[styles.scoreBigText, { color: Colors.primary }]}>{currentPointMe}</Text>
+                                        <TouchableOpacity style={[styles.controlBtnRound, { backgroundColor: Colors.primary }]} onPress={() => handlePointChange('me', 1)}>
+                                            <MaterialIcons name="add" size={24} color="#fff" />
                                         </TouchableOpacity>
                                     </View>
                                 </View>
 
                                 {/* VS Divider */}
                                 <View style={styles.centerDivider}>
-                                    <Text style={[styles.vsTextLarge, { color: mutedColor }]}>:</Text>
+                                    <Text style={[styles.vsTextLarge, { color: mutedColor }]}>vs</Text>
                                 </View>
 
                                 {/* Player 2 (Opponent) */}
                                 <View style={styles.playerColumn}>
-                                    <Text style={[styles.playerNameLarge, { color: textColor }]}>{scannedOpponent?.name || "Lawan"}</Text>
-                                    <TouchableOpacity style={[styles.scoreBigBox, { borderColor: activeSetWinner === 'opp' ? Colors.success : Colors.border }]} onPress={() => handlePointChange('opp', 1)}>
-                                        <Text style={[styles.scoreBigText, { color: textColor }]}>{currentPointOpp}</Text>
-                                    </TouchableOpacity>
-                                    <View style={styles.scoreControls}>
-                                        <TouchableOpacity style={[styles.controlBtn, { borderColor: Colors.muted }]} onPress={() => handlePointChange('opp', -1)}>
-                                            <MaterialIcons name="remove" size={24} color={Colors.text} />
+                                    <Image
+                                        source={{ uri: scannedOpponent?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(scannedOpponent?.name || "Opp")}&background=random` }}
+                                        style={styles.scorerAvatar}
+                                    />
+                                    <Text style={[styles.playerNameLarge, { color: textColor }]} numberOfLines={1}>{scannedOpponent?.name || "Lawan"}</Text>
+                                    <Text style={[styles.playerMrText, { color: mutedColor }]}>MR {scannedOpponent?.rating_mr || 1000}</Text>
+
+                                    <View style={styles.scoreControlsRow}>
+                                        <TouchableOpacity style={[styles.controlBtnRound, { backgroundColor: 'rgba(0,0,0,0.05)' }]} onPress={() => handlePointChange('opp', -1)}>
+                                            <MaterialIcons name="remove" size={24} color={Colors.secondary} />
                                         </TouchableOpacity>
-                                        <TouchableOpacity style={[styles.controlBtn, { borderColor: Colors.muted }]} onPress={() => handlePointChange('opp', 1)}>
-                                            <MaterialIcons name="add" size={24} color={Colors.primary} />
+                                        <Text style={[styles.scoreBigText, { color: Colors.secondary }]}>{currentPointOpp}</Text>
+                                        <TouchableOpacity style={[styles.controlBtnRound, { backgroundColor: Colors.secondary }]} onPress={() => handlePointChange('opp', 1)}>
+                                            <MaterialIcons name="add" size={24} color="#fff" />
                                         </TouchableOpacity>
                                     </View>
                                 </View>
@@ -991,5 +1000,28 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         alignItems: 'center',
         width: '80%',
+    },
+    // Premium Scorer Styles
+    scorerAvatar: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        marginBottom: 8,
+    },
+    playerMrText: {
+        fontSize: 12,
+        marginBottom: 12,
+    },
+    scoreControlsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    controlBtnRound: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 });

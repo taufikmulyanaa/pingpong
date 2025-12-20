@@ -41,27 +41,36 @@ export default function QuickMatchScreen() {
     const [searchStep, setSearchStep] = useState(0);
     const [matchType, setMatchType] = useState<MatchType>("RANKED");
     const [matchFound, setMatchFound] = useState<boolean>(false);
-    const [opponent, setOpponent] = useState<FoundOpponent | null>(null);
+    const [opponents, setOpponents] = useState<FoundOpponent[]>([]);
+    const [selectedOpponentIndex, setSelectedOpponentIndex] = useState<number>(0);
+    const [bestOf, setBestOf] = useState<number>(5);
     const [createdMatchId, setCreatedMatchId] = useState<string | null>(null);
     const [showMyQR, setShowMyQR] = useState(false);
 
     // Animation values
     const pulseAnim = useState(new Animated.Value(1))[0];
     const rotateAnim = useState(new Animated.Value(0))[0];
+    const ring1Opacity = useState(new Animated.Value(1))[0];
+    const ring1Scale = useState(new Animated.Value(0.8))[0];
+    const ring2Opacity = useState(new Animated.Value(1))[0];
+    const ring2Scale = useState(new Animated.Value(0.8))[0];
+    const ring3Opacity = useState(new Animated.Value(1))[0];
+    const ring3Scale = useState(new Animated.Value(0.8))[0];
+    const glowAnim = useState(new Animated.Value(0.5))[0];
 
     useEffect(() => {
         if (isSearching) {
-            // Pulse animation
+            // Pulse animation for avatar
             Animated.loop(
                 Animated.sequence([
                     Animated.timing(pulseAnim, {
-                        toValue: 1.2,
-                        duration: 1000,
+                        toValue: 1.1,
+                        duration: 800,
                         useNativeDriver: true,
                     }),
                     Animated.timing(pulseAnim, {
                         toValue: 1,
-                        duration: 1000,
+                        duration: 800,
                         useNativeDriver: true,
                     }),
                 ])
@@ -71,18 +80,93 @@ export default function QuickMatchScreen() {
             Animated.loop(
                 Animated.timing(rotateAnim, {
                     toValue: 1,
-                    duration: 3000,
+                    duration: 4000,
                     useNativeDriver: true,
                 })
+            ).start();
+
+            // Ripple ring 1 animation
+            Animated.loop(
+                Animated.parallel([
+                    Animated.timing(ring1Scale, {
+                        toValue: 2.2,
+                        duration: 2000,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(ring1Opacity, {
+                        toValue: 0,
+                        duration: 2000,
+                        useNativeDriver: true,
+                    }),
+                ])
+            ).start();
+
+            // Ripple ring 2 animation (staggered)
+            setTimeout(() => {
+                Animated.loop(
+                    Animated.parallel([
+                        Animated.timing(ring2Scale, {
+                            toValue: 2.2,
+                            duration: 2000,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(ring2Opacity, {
+                            toValue: 0,
+                            duration: 2000,
+                            useNativeDriver: true,
+                        }),
+                    ])
+                ).start();
+            }, 666);
+
+            // Ripple ring 3 animation (staggered)
+            setTimeout(() => {
+                Animated.loop(
+                    Animated.parallel([
+                        Animated.timing(ring3Scale, {
+                            toValue: 2.2,
+                            duration: 2000,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(ring3Opacity, {
+                            toValue: 0,
+                            duration: 2000,
+                            useNativeDriver: true,
+                        }),
+                    ])
+                ).start();
+            }, 1333);
+
+            // Glow animation
+            Animated.loop(
+                Animated.sequence([
+                    Animated.timing(glowAnim, {
+                        toValue: 1,
+                        duration: 1500,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(glowAnim, {
+                        toValue: 0.5,
+                        duration: 1500,
+                        useNativeDriver: true,
+                    }),
+                ])
             ).start();
         } else {
             pulseAnim.setValue(1);
             rotateAnim.setValue(0);
+            ring1Scale.setValue(0.8);
+            ring1Opacity.setValue(1);
+            ring2Scale.setValue(0.8);
+            ring2Opacity.setValue(1);
+            ring3Scale.setValue(0.8);
+            ring3Opacity.setValue(1);
+            glowAnim.setValue(0.5);
         }
     }, [isSearching]);
 
-    const findOpponent = async (): Promise<FoundOpponent | null> => {
-        if (!profile) return null;
+    const findOpponents = async (): Promise<FoundOpponent[]> => {
+        if (!profile) return [];
 
         const myRating = profile.rating_mr || 1000;
         const ratingRange = 200; // +/- 200 MR
@@ -95,32 +179,11 @@ export default function QuickMatchScreen() {
                 .neq("id", profile.id)
                 .gte("rating_mr", myRating - ratingRange)
                 .lte("rating_mr", myRating + ratingRange)
-                .eq("is_online", true) // Only search online players
                 .order("rating_mr", { ascending: false })
-                .limit(10);
+                .limit(20);
 
-            if (error) {
-                console.error("Error finding opponent:", error);
-                // If no online players, search without online filter
-                const { data: fallbackData, error: fallbackError } = await supabase
-                    .from("profiles")
-                    .select("id, name, avatar_url, rating_mr, city")
-                    .neq("id", profile.id)
-                    .gte("rating_mr", myRating - ratingRange)
-                    .lte("rating_mr", myRating + ratingRange)
-                    .order("rating_mr", { ascending: false })
-                    .limit(10);
-
-                if (fallbackError || !fallbackData || fallbackData.length === 0) {
-                    return null;
-                }
-                // Pick random opponent from results
-                const randomIndex = Math.floor(Math.random() * fallbackData.length);
-                return fallbackData[randomIndex] as FoundOpponent;
-            }
-
-            if (!data || data.length === 0) {
-                // Fallback: search without online filter
+            if (error || !data || data.length === 0) {
+                // Fallback: search without rating filter
                 const { data: allPlayers } = await supabase
                     .from("profiles")
                     .select("id, name, avatar_url, rating_mr, city")
@@ -128,17 +191,18 @@ export default function QuickMatchScreen() {
                     .order("rating_mr", { ascending: false })
                     .limit(20);
 
-                if (!allPlayers || allPlayers.length === 0) return null;
-                const randomIndex = Math.floor(Math.random() * allPlayers.length);
-                return allPlayers[randomIndex] as FoundOpponent;
+                if (!allPlayers || allPlayers.length === 0) return [];
+                // Pick up to 3 random opponents
+                const shuffled = allPlayers.sort(() => 0.5 - Math.random());
+                return shuffled.slice(0, Math.min(5, shuffled.length)) as FoundOpponent[];
             }
 
-            // Pick random opponent from results
-            const randomIndex = Math.floor(Math.random() * data.length);
-            return data[randomIndex] as FoundOpponent;
+            // Pick up to 5 random opponents from results
+            const shuffled = data.sort(() => 0.5 - Math.random());
+            return shuffled.slice(0, Math.min(5, shuffled.length)) as FoundOpponent[];
         } catch (error) {
             console.error("Matchmaking error:", error);
-            return null;
+            return [];
         }
     };
 
@@ -153,7 +217,7 @@ export default function QuickMatchScreen() {
                     player2_id: opponentId,
                     type: matchType,
                     status: "PENDING",
-                    best_of: 5,
+                    best_of: bestOf,
                     player1_rating_before: profile.rating_mr || 1000,
                 } as any)
                 .select()
@@ -175,7 +239,10 @@ export default function QuickMatchScreen() {
         setIsSearching(true);
         setSearchStep(0);
         setMatchFound(false);
-        setOpponent(null);
+        setOpponents([]);
+        setSelectedOpponentIndex(0);
+        setBestOf(5);
+        setCreatedMatchId(null);
 
         // Step progression with real matchmaking
         let step = 0;
@@ -186,15 +253,13 @@ export default function QuickMatchScreen() {
             }
         }, 1500);
 
-        // Wait a bit then find opponent
+        // Wait a bit then find opponents
         setTimeout(async () => {
-            const foundOpponent = await findOpponent();
+            const foundOpponents = await findOpponents();
             clearInterval(stepInterval);
 
-            if (foundOpponent) {
-                setOpponent(foundOpponent);
-                const matchId = await createMatch(foundOpponent.id);
-                setCreatedMatchId(matchId);
+            if (foundOpponents.length > 0) {
+                setOpponents(foundOpponents);
                 setMatchFound(true);
                 setIsSearching(false);
             } else {
@@ -212,7 +277,8 @@ export default function QuickMatchScreen() {
         setIsSearching(false);
         setSearchStep(0);
         setMatchFound(false);
-        setOpponent(null);
+        setOpponents([]);
+        setSelectedOpponentIndex(0);
         pulseAnim.stopAnimation();
         rotateAnim.stopAnimation();
 
@@ -226,22 +292,20 @@ export default function QuickMatchScreen() {
         }
     };
 
-    const handleAcceptMatch = () => {
-        if (createdMatchId) {
-            // Navigate to match detail
-            router.replace(`/match/${createdMatchId}` as any);
+    const handleAcceptMatch = async () => {
+        if (opponents.length > 0) {
+            const selectedOpponent = opponents[selectedOpponentIndex];
+            const matchId = await createMatch(selectedOpponent.id);
+            if (matchId) {
+                router.replace(`/match/${matchId}` as any);
+            }
         }
     };
 
     const handleDecline = async () => {
-        if (createdMatchId) {
-            await (supabase as any)
-                .from("matches")
-                .update({ status: "CANCELLED" })
-                .eq("id", createdMatchId);
-        }
         setMatchFound(false);
-        setOpponent(null);
+        setOpponents([]);
+        setSelectedOpponentIndex(0);
         setCreatedMatchId(null);
     };
 
@@ -324,22 +388,65 @@ export default function QuickMatchScreen() {
                             </View>
                         </View>
                     ) : isSearching ? (
-                        // 2. Searching State
+                        // 2. Searching State - Premium Animation
                         <View style={styles.searchingState}>
                             <View style={styles.radarContainer}>
-                                <Animated.View style={[styles.radarPulse, { transform: [{ scale: pulseAnim }] }]} />
+                                {/* Ripple Ring 1 */}
+                                <Animated.View
+                                    style={[
+                                        styles.rippleRing,
+                                        {
+                                            transform: [{ scale: ring1Scale }],
+                                            opacity: ring1Opacity,
+                                        }
+                                    ]}
+                                />
+                                {/* Ripple Ring 2 */}
+                                <Animated.View
+                                    style={[
+                                        styles.rippleRing,
+                                        {
+                                            transform: [{ scale: ring2Scale }],
+                                            opacity: ring2Opacity,
+                                        }
+                                    ]}
+                                />
+                                {/* Ripple Ring 3 */}
+                                <Animated.View
+                                    style={[
+                                        styles.rippleRing,
+                                        {
+                                            transform: [{ scale: ring3Scale }],
+                                            opacity: ring3Opacity,
+                                        }
+                                    ]}
+                                />
+
+                                {/* Center Glow */}
+                                <Animated.View
+                                    style={[
+                                        styles.avatarGlow,
+                                        { opacity: glowAnim }
+                                    ]}
+                                />
+
+                                {/* Rotating Gradient */}
                                 <Animated.View style={[styles.radarSpinner, { transform: [{ rotate: spin }] }]}>
                                     <LinearGradient
-                                        colors={[Colors.primary, 'transparent']}
+                                        colors={[Colors.primary, '#F59E0B', 'transparent']}
                                         style={styles.radarGradient}
                                         start={{ x: 0, y: 0 }}
                                         end={{ x: 1, y: 1 }}
                                     />
                                 </Animated.View>
-                                <Image
-                                    source={{ uri: myAvatar }}
-                                    style={styles.myAvatar}
-                                />
+
+                                {/* Avatar */}
+                                <Animated.View style={[styles.avatarWrapper, { transform: [{ scale: pulseAnim }] }]}>
+                                    <Image
+                                        source={{ uri: myAvatar }}
+                                        style={styles.myAvatar}
+                                    />
+                                </Animated.View>
                             </View>
 
                             <Text style={[styles.searchingTitle, { color: textColor }]}>Mencari Lawan...</Text>
@@ -349,35 +456,64 @@ export default function QuickMatchScreen() {
                                 <Text style={styles.cancelBtnText}>Batalkan</Text>
                             </TouchableOpacity>
                         </View>
-                    ) : opponent ? (
-                        // 3. Match Found State
+                    ) : opponents.length > 0 ? (
+                        // 3. Match Found State with Opponent Selection
                         <View style={styles.matchFoundState}>
                             <Text style={[styles.matchFoundTitle, { color: textColor }]}>Lawan Ditemukan!</Text>
+                            <Text style={[styles.matchFoundSub, { color: mutedColor }]}>Pilih lawan dan format pertandingan</Text>
 
-                            <View style={styles.vsContainer}>
-                                <View style={styles.playerBlock}>
-                                    <Image
-                                        source={{ uri: myAvatar }}
-                                        style={styles.playerAvatarLarge}
-                                    />
-                                    <Text style={[styles.playerName, { color: textColor }]}>{myName}</Text>
-                                    <Text style={[styles.playerRating, { color: mutedColor }]}>MR {myRating}</Text>
-                                </View>
-
-                                <View style={styles.vsBadge}>
-                                    <Text style={styles.vsText}>VS</Text>
-                                </View>
-
-                                <View style={styles.playerBlock}>
-                                    <Image
-                                        source={{ uri: opponent.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(opponent.name)}&background=random` }}
-                                        style={styles.playerAvatarLarge}
-                                    />
-                                    <Text style={[styles.playerName, { color: textColor }]}>{opponent.name}</Text>
-                                    <Text style={[styles.playerRating, { color: mutedColor }]}>MR {opponent.rating_mr}</Text>
+                            {/* Opponent Selection Cards */}
+                            <View style={styles.opponentSelectionContainer}>
+                                <Text style={[styles.sectionLabel, { color: mutedColor }]}>PILIH LAWAN</Text>
+                                <View style={styles.opponentCards}>
+                                    {opponents.map((opp, index) => (
+                                        <TouchableOpacity
+                                            key={opp.id}
+                                            style={[
+                                                styles.opponentCard,
+                                                { backgroundColor: cardColor },
+                                                selectedOpponentIndex === index && styles.opponentCardSelected,
+                                            ]}
+                                            onPress={() => setSelectedOpponentIndex(index)}
+                                        >
+                                            <Image
+                                                source={{ uri: opp.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(opp.name)}&background=random` }}
+                                                style={styles.opponentCardAvatar}
+                                            />
+                                            <Text style={[styles.opponentCardName, { color: textColor }]} numberOfLines={1}>{opp.name}</Text>
+                                            <Text style={[styles.opponentCardRating, { color: mutedColor }]}>MR {opp.rating_mr}</Text>
+                                            {selectedOpponentIndex === index && (
+                                                <View style={styles.selectedBadge}>
+                                                    <MaterialIcons name="check-circle" size={20} color={Colors.primary} />
+                                                </View>
+                                            )}
+                                        </TouchableOpacity>
+                                    ))}
                                 </View>
                             </View>
 
+                            {/* Best Of Selector */}
+                            <View style={styles.bestOfContainer}>
+                                <Text style={[styles.sectionLabel, { color: mutedColor }]}>FORMAT PERTANDINGAN</Text>
+                                <View style={styles.bestOfButtons}>
+                                    {[2, 3, 5].map((num) => (
+                                        <TouchableOpacity
+                                            key={num}
+                                            style={[
+                                                styles.bestOfBtn,
+                                                { backgroundColor: cardColor },
+                                                bestOf === num && styles.bestOfBtnActive,
+                                            ]}
+                                            onPress={() => setBestOf(num)}
+                                        >
+                                            <Text style={[styles.bestOfBtnNum, bestOf === num && styles.bestOfBtnNumActive]}>{num}</Text>
+                                            <Text style={[styles.bestOfBtnText, { color: bestOf === num ? Colors.primary : mutedColor }]}>Set</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
+
+                            {/* Match Info */}
                             <View style={[styles.matchInfoCard, { backgroundColor: cardColor }]}>
                                 <View style={styles.matchInfoRow}>
                                     <MaterialIcons name="emoji-events" size={20} color={mutedColor} />
@@ -387,14 +523,8 @@ export default function QuickMatchScreen() {
                                 </View>
                                 <View style={styles.matchInfoRow}>
                                     <MaterialIcons name="timer" size={20} color={mutedColor} />
-                                    <Text style={[styles.matchInfoText, { color: textColor }]}>Best of 5 Sets</Text>
+                                    <Text style={[styles.matchInfoText, { color: textColor }]}>Best of {bestOf} Sets</Text>
                                 </View>
-                                {opponent.city && (
-                                    <View style={styles.matchInfoRow}>
-                                        <MaterialIcons name="place" size={20} color={mutedColor} />
-                                        <Text style={[styles.matchInfoText, { color: textColor }]}>{opponent.city}</Text>
-                                    </View>
-                                )}
                             </View>
 
                             <TouchableOpacity
@@ -530,38 +660,60 @@ const styles = StyleSheet.create({
         justifyContent: "center",
     },
     radarContainer: {
-        width: 200,
-        height: 200,
+        width: 220,
+        height: 220,
         justifyContent: "center",
         alignItems: "center",
         marginBottom: 40,
     },
-    radarPulse: {
+    rippleRing: {
         position: "absolute",
-        width: 200,
-        height: 200,
-        borderRadius: 100,
-        backgroundColor: "rgba(59, 130, 246, 0.1)",
+        width: 70,
+        height: 70,
+        borderRadius: 35,
         borderWidth: 1,
-        borderColor: "rgba(59, 130, 246, 0.3)",
+        borderColor: Colors.primary,
+        backgroundColor: "transparent",
+    },
+    avatarGlow: {
+        position: "absolute",
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: Colors.primary,
+        shadowColor: Colors.primary,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.8,
+        shadowRadius: 30,
+        elevation: 10,
     },
     radarSpinner: {
         position: "absolute",
-        width: 180,
-        height: 180,
-        borderRadius: 90,
+        width: 160,
+        height: 160,
+        borderRadius: 80,
     },
     radarGradient: {
         flex: 1,
-        borderRadius: 90,
-        opacity: 0.2,
+        borderRadius: 80,
+        opacity: 0.3,
+    },
+    avatarWrapper: {
+        width: 72,
+        height: 72,
+        borderRadius: 36,
+        backgroundColor: "#fff",
+        padding: 3,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 12,
+        elevation: 8,
     },
     myAvatar: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        borderWidth: 3,
-        borderColor: "#fff",
+        width: "100%",
+        height: "100%",
+        borderRadius: 33,
     },
     searchingTitle: {
         fontSize: 20,
@@ -591,7 +743,89 @@ const styles = StyleSheet.create({
     matchFoundTitle: {
         fontSize: 24,
         fontWeight: "bold",
-        marginBottom: 40,
+        marginBottom: 8,
+    },
+    matchFoundSub: {
+        fontSize: 14,
+        marginBottom: 24,
+    },
+    sectionLabel: {
+        fontSize: 11,
+        fontWeight: "600",
+        letterSpacing: 1,
+        marginBottom: 12,
+    },
+    opponentSelectionContainer: {
+        width: "100%",
+        marginBottom: 24,
+    },
+    opponentCards: {
+        flexDirection: "row",
+        gap: 12,
+    },
+    opponentCard: {
+        flex: 1,
+        alignItems: "center",
+        padding: 16,
+        borderRadius: 20,
+        borderWidth: 2,
+        borderColor: "transparent",
+        position: "relative",
+    },
+    opponentCardSelected: {
+        borderColor: Colors.primary,
+        backgroundColor: "rgba(0, 150, 136, 0.05)",
+    },
+    opponentCardAvatar: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        marginBottom: 8,
+    },
+    opponentCardName: {
+        fontSize: 12,
+        fontWeight: "600",
+        textAlign: "center",
+        marginBottom: 4,
+    },
+    opponentCardRating: {
+        fontSize: 10,
+    },
+    selectedBadge: {
+        position: "absolute",
+        top: 8,
+        right: 8,
+    },
+    bestOfContainer: {
+        width: "100%",
+        marginBottom: 24,
+    },
+    bestOfButtons: {
+        flexDirection: "row",
+        gap: 12,
+    },
+    bestOfBtn: {
+        flex: 1,
+        alignItems: "center",
+        paddingVertical: 10,
+        borderRadius: 12,
+        borderWidth: 2,
+        borderColor: "transparent",
+    },
+    bestOfBtnActive: {
+        borderColor: Colors.primary,
+        backgroundColor: "rgba(0, 150, 136, 0.05)",
+    },
+    bestOfBtnNum: {
+        fontSize: 18,
+        fontWeight: "bold",
+        color: Colors.muted,
+    },
+    bestOfBtnNumActive: {
+        color: Colors.primary,
+    },
+    bestOfBtnText: {
+        fontSize: 12,
     },
     vsContainer: {
         flexDirection: "row",
