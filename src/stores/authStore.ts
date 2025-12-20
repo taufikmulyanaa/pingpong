@@ -169,33 +169,68 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                     redirectUrl
                 );
 
+                console.log('OAuth result:', result);
+
                 if (result.type === 'success' && result.url) {
+                    console.log('OAuth callback URL:', result.url);
+
+                    // Parse URL - tokens can be in query params OR hash fragment
                     const url = new URL(result.url);
-                    const accessToken = url.searchParams.get('access_token');
-                    const refreshToken = url.searchParams.get('refresh_token');
+
+                    // Check query params first
+                    let accessToken = url.searchParams.get('access_token');
+                    let refreshToken = url.searchParams.get('refresh_token');
+
+                    // If not in query params, check hash fragment
+                    if (!accessToken && url.hash) {
+                        const hashParams = new URLSearchParams(url.hash.substring(1));
+                        accessToken = hashParams.get('access_token');
+                        refreshToken = hashParams.get('refresh_token');
+                    }
+
+                    console.log('Tokens found:', { hasAccess: !!accessToken, hasRefresh: !!refreshToken });
 
                     if (accessToken && refreshToken) {
-                        const { data: sessionData } = await supabase.auth.setSession({
+                        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
                             access_token: accessToken,
                             refresh_token: refreshToken,
                         });
+
+                        if (sessionError) {
+                            console.error('Session error:', sessionError);
+                            throw sessionError;
+                        }
+
+                        console.log('Session set:', sessionData?.user?.id);
 
                         // Fetch profile immediately after setting session
                         if (sessionData?.user) {
                             set({ user: sessionData.user, session: sessionData.session });
 
+                            // Add small delay to ensure database trigger has completed
+                            await new Promise(resolve => setTimeout(resolve, 500));
+
                             // Fetch profile from database
-                            const { data: profileData } = await supabase
+                            const { data: profileData, error: profileError } = await supabase
                                 .from("profiles")
                                 .select("*")
                                 .eq("id", sessionData.user.id)
                                 .single();
 
+                            console.log('Profile fetch result:', {
+                                profileData: profileData?.name,
+                                profileError
+                            });
+
                             if (profileData) {
                                 set({ profile: profileData as Profile });
                                 console.log("Profile loaded after Google login:", (profileData as Profile).name);
+                            } else if (profileError) {
+                                console.error('Profile fetch error:', profileError);
                             }
                         }
+                    } else {
+                        console.error('No tokens found in callback URL');
                     }
                 }
             }
